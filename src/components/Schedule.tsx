@@ -235,7 +235,9 @@ export function Schedule({
                         />
                       </div>
 
-                      <Avatar firstName={b.firstName} lastName={b.lastName} />
+                      <span className="hidden shrink-0 sm:block">
+                        <Avatar firstName={b.firstName} lastName={b.lastName} />
+                      </span>
 
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium text-slate-800 transition group-hover:text-brand-800">

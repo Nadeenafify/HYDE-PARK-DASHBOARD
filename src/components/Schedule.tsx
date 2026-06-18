@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronRight, Search } from 'lucide-react'
+import { CalendarDays, ChevronRight, Clock, Search } from 'lucide-react'
 import type { Booking, BookingStatus } from '../types'
 import { TIME_SLOTS, STATUSES } from '../types'
 import {
@@ -221,39 +221,64 @@ export function Schedule({
                     <li
                       key={b.id}
                       onClick={() => onSelect(b)}
-                      className="group flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-brand-50/40 sm:gap-4 sm:px-5"
+                      className="group cursor-pointer transition hover:bg-brand-50/40"
                     >
-                      <span className="w-14 shrink-0 whitespace-nowrap text-xs font-semibold tabular-nums text-slate-600 sm:w-16 sm:text-right sm:text-sm">
-                        {b.timeSlot}
-                      </span>
+                      {/* Desktop / tablet: timeline row */}
+                      <div className="hidden items-center gap-4 px-5 py-3 sm:flex">
+                        <span className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums text-slate-600">
+                          {b.timeSlot}
+                        </span>
 
-                      {/* Timeline rail — decorative; hidden on mobile to free up width */}
-                      <div className="relative hidden w-4 shrink-0 items-center justify-center self-stretch sm:flex">
-                        <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-slate-100 transition group-hover:bg-brand-200" />
-                        <span
-                          className={`relative h-2.5 w-2.5 rounded-full ring-4 ring-white ${STATUS_META[b.status].dot}`}
+                        {/* Timeline rail — a line with a status-colored marker */}
+                        <div className="relative flex w-4 shrink-0 items-center justify-center self-stretch">
+                          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-slate-100 transition group-hover:bg-brand-200" />
+                          <span
+                            className={`relative h-2.5 w-2.5 rounded-full ring-4 ring-white ${STATUS_META[b.status].dot}`}
+                          />
+                        </div>
+
+                        <Avatar firstName={b.firstName} lastName={b.lastName} />
+
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium text-slate-800 transition group-hover:text-brand-800">
+                            {fullName(b.firstName, b.lastName)}
+                          </p>
+                          <p className="truncate text-xs text-slate-400">
+                            {b.unitNumber}
+                          </p>
+                        </div>
+
+                        <StatusBadge status={b.status} />
+
+                        <ChevronRight
+                          size={16}
+                          className="shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand-500"
                         />
                       </div>
 
-                      <span className="hidden shrink-0 sm:block">
-                        <Avatar firstName={b.firstName} lastName={b.lastName} />
-                      </span>
-
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium text-slate-800 transition group-hover:text-brand-800">
-                          {fullName(b.firstName, b.lastName)}
-                        </p>
-                        <p className="truncate text-xs text-slate-400">
-                          {b.unitNumber}
-                        </p>
+                      {/* Mobile: stacked card (matches the Bookings layout) */}
+                      <div className="flex flex-col gap-2 px-5 py-4 sm:hidden">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <Avatar firstName={b.firstName} lastName={b.lastName} />
+                            <div className="min-w-0">
+                              <p className="truncate font-medium text-slate-800">
+                                {fullName(b.firstName, b.lastName)}
+                              </p>
+                              <p className="truncate text-xs text-slate-400">
+                                {b.unitNumber}
+                              </p>
+                            </div>
+                          </div>
+                          <StatusBadge status={b.status} />
+                        </div>
+                        <div className="flex items-center gap-1.5 pl-12 text-sm text-slate-600">
+                          <Clock size={14} className="shrink-0 text-slate-400" />
+                          <span className="font-medium tabular-nums">
+                            {b.timeSlot}
+                          </span>
+                        </div>
                       </div>
-
-                      <StatusBadge status={b.status} />
-
-                      <ChevronRight
-                        size={16}
-                        className="hidden shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand-500 sm:block"
-                      />
                     </li>
                   ))}
                 </ul>

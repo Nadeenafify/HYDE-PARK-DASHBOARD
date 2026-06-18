@@ -171,7 +171,7 @@ export function Schedule({
                 }`}
               >
                 <div
-                  className={`flex items-center gap-4 border-b px-5 py-3.5 ${
+                  className={`flex items-center gap-3 border-b px-4 py-3.5 sm:gap-4 sm:px-5 ${
                     today
                       ? 'border-brand-100/70 bg-linear-to-r from-brand-50/80 to-white'
                       : 'border-slate-100 bg-linear-to-r from-slate-50 to-white'
@@ -208,7 +208,11 @@ export function Schedule({
                   </div>
 
                   <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
-                    {list.length} installation{list.length > 1 ? 's' : ''}
+                    {list.length}
+                    <span className="hidden sm:inline">
+                      {' '}
+                      installation{list.length > 1 ? 's' : ''}
+                    </span>
                   </span>
                 </div>
 
@@ -217,14 +221,14 @@ export function Schedule({
                     <li
                       key={b.id}
                       onClick={() => onSelect(b)}
-                      className="group flex cursor-pointer items-center gap-3 px-5 py-3 transition hover:bg-brand-50/40 sm:gap-4"
+                      className="group flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-brand-50/40 sm:gap-4 sm:px-5"
                     >
-                      <span className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums text-slate-600">
+                      <span className="w-14 shrink-0 whitespace-nowrap text-xs font-semibold tabular-nums text-slate-600 sm:w-16 sm:text-right sm:text-sm">
                         {b.timeSlot}
                       </span>
 
-                      {/* Timeline rail — a continuous line with a status-colored marker */}
-                      <div className="relative flex w-4 shrink-0 items-center justify-center self-stretch">
+                      {/* Timeline rail — decorative; hidden on mobile to free up width */}
+                      <div className="relative hidden w-4 shrink-0 items-center justify-center self-stretch sm:flex">
                         <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-slate-100 transition group-hover:bg-brand-200" />
                         <span
                           className={`relative h-2.5 w-2.5 rounded-full ring-4 ring-white ${STATUS_META[b.status].dot}`}

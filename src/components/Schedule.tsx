@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Search } from 'lucide-react'
+import { CalendarDays, ChevronRight, Search } from 'lucide-react'
 import type { Booking, BookingStatus } from '../types'
 import { TIME_SLOTS, STATUSES } from '../types'
 import {
@@ -9,10 +9,27 @@ import {
   daysFromToday,
   STATUS_META,
 } from '../lib/utils'
-import { Pagination } from './ui'
+import { Avatar, Pagination, StatusBadge } from './ui'
 import { usePagination } from '../hooks/usePagination'
 
 type StatusFilter = BookingStatus | 'all'
+
+/** Compact calendar parts for a day tile, e.g. { weekday: "THU", day: "18" }. */
+function dateParts(iso: string) {
+  const d = new Date(`${iso}T00:00:00`)
+  return {
+    weekday: d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
+    day: d.toLocaleDateString('en-US', { day: 'numeric' }),
+  }
+}
+
+/** "Today" / "Tomorrow" / "In 3 days" relative to the demo anchor. */
+function relativeLabel(iso: string): string {
+  const days = daysFromToday(iso)
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Tomorrow'
+  return `In ${days} days`
+}
 
 export function Schedule({
   bookings,
@@ -24,17 +41,37 @@ export function Schedule({
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
 
-  const days = useMemo(() => {
+  // Upcoming, non-cancelled bookings matching the search — the set the status
+  // filter pills count against, before the status filter itself is applied.
+  const base = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const active = bookings.filter(
+    return bookings.filter(
       (b) =>
         b.status !== 'cancelled' &&
         daysFromToday(b.installationDate) >= 0 &&
-        (statusFilter === 'all' || b.status === statusFilter) &&
         (!q ||
           fullName(b.firstName, b.lastName).toLowerCase().includes(q) ||
           b.unitNumber.toLowerCase().includes(q)),
     )
+  }, [bookings, query])
+
+  const counts = useMemo(() => {
+    const c: Record<StatusFilter, number> = {
+      all: base.length,
+      pending: 0,
+      confirmed: 0,
+      completed: 0,
+      cancelled: 0,
+    }
+    for (const b of base) c[b.status]++
+    return c
+  }, [base])
+
+  const days = useMemo(() => {
+    const active =
+      statusFilter === 'all'
+        ? base
+        : base.filter((b) => b.status === statusFilter)
     const byDate = new Map<string, Booking[]>()
     for (const b of active) {
       const list = byDate.get(b.installationDate) ?? []
@@ -49,7 +86,7 @@ export function Schedule({
           (a, b) => TIME_SLOTS.indexOf(a.timeSlot) - TIME_SLOTS.indexOf(b.timeSlot),
         ),
       }))
-  }, [bookings, query, statusFilter])
+  }, [base, statusFilter])
 
   // Paginate by day group — a handful of days per page.
   const { pageItems, page, pageSize, total, totalPages, start, setPage, setPageSize } =
@@ -67,17 +104,17 @@ export function Schedule({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-xs">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/70 bg-white px-5 py-4 shadow-soft sm:flex-row sm:items-center sm:justify-between">
+        <div className="group relative w-full sm:max-w-xs">
           <Search
             size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-brand-600"
           />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search name or unit…"
-            className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15"
           />
         </div>
 
@@ -90,13 +127,20 @@ export function Schedule({
                 key={s}
                 type="button"
                 onClick={() => setStatusFilter(s)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${
                   active
-                    ? 'bg-slate-900 text-white'
+                    ? 'bg-linear-to-r from-slate-900 to-slate-700 text-white shadow-sm'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
                 {label}
+                <span
+                  className={`rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
+                    active ? 'bg-white/20 text-white' : 'bg-white text-slate-500'
+                  }`}
+                >
+                  {counts[s]}
+                </span>
               </button>
             )
           })}
@@ -104,66 +148,114 @@ export function Schedule({
       </div>
 
       {total === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-white py-20 text-center shadow-sm">
-          <CalendarDays className="text-slate-300" size={32} />
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-slate-200/70 bg-white py-20 text-center shadow-soft">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-300">
+            <CalendarDays size={28} />
+          </span>
           <p className="text-sm text-slate-500">
             No upcoming installations match your filters.
           </p>
         </div>
       ) : (
         <>
-          {pageItems.map(({ date, list }) => (
-            <div
-              key={date}
-              className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
-            >
-              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/70 px-5 py-3">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-slate-800">
-                    {formatDate(date)}
-                  </h3>
-                  {isToday(date) && (
-                    <span className="rounded bg-teal-700/10 px-1.5 py-0.5 text-[10px] font-semibold text-teal-700">
-                      TODAY
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs text-slate-400">
-                  {list.length} installation{list.length > 1 ? 's' : ''}
-                </span>
-              </div>
-              <ul className="divide-y divide-slate-50">
-                {list.map((b) => (
-                  <li
-                    key={b.id}
-                    onClick={() => onSelect(b)}
-                    className="flex cursor-pointer items-center gap-4 px-5 py-3 transition hover:bg-slate-50/80"
+          {pageItems.map(({ date, list }) => {
+            const today = isToday(date)
+            const { weekday, day } = dateParts(date)
+            return (
+              <div
+                key={date}
+                className={`overflow-hidden rounded-2xl border bg-white shadow-soft transition ${
+                  today
+                    ? 'border-brand-200 ring-1 ring-brand-500/15'
+                    : 'border-slate-200/70'
+                }`}
+              >
+                <div
+                  className={`flex items-center gap-4 border-b px-5 py-3.5 ${
+                    today
+                      ? 'border-brand-100/70 bg-linear-to-r from-brand-50/80 to-white'
+                      : 'border-slate-100 bg-linear-to-r from-slate-50 to-white'
+                  }`}
+                >
+                  {/* Calendar date tile */}
+                  <div
+                    className={`flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl ${
+                      today
+                        ? 'bg-linear-to-br from-brand-500 to-brand-700 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}
                   >
-                    <span className="w-20 shrink-0 text-sm font-medium text-slate-700">
-                      {b.timeSlot}
-                    </span>
-                    <div className="h-8 w-px bg-slate-100" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-slate-800">
-                        {fullName(b.firstName, b.lastName)}
-                      </p>
-                      <p className="text-xs text-slate-400">{b.unitNumber}</p>
-                    </div>
                     <span
-                      className={`inline-flex items-center gap-1.5 text-xs font-medium ${STATUS_META[b.status].text}`}
+                      className={`text-[10px] font-bold leading-none tracking-wide ${
+                        today ? 'text-white/80' : 'text-slate-400'
+                      }`}
                     >
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${STATUS_META[b.status].dot}`}
-                      />
-                      {STATUS_META[b.status].label}
+                      {weekday}
                     </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+                    <span className="text-lg font-bold leading-tight">{day}</span>
+                  </div>
 
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="flex items-center gap-2 truncate text-sm font-semibold text-slate-800">
+                      {formatDate(date)}
+                      {today && (
+                        <span className="rounded-md bg-brand-100 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-brand-700 ring-1 ring-inset ring-brand-200">
+                          TODAY
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-xs text-slate-400">{relativeLabel(date)}</p>
+                  </div>
+
+                  <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+                    {list.length} installation{list.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                <ul>
+                  {list.map((b) => (
+                    <li
+                      key={b.id}
+                      onClick={() => onSelect(b)}
+                      className="group flex cursor-pointer items-center gap-3 px-5 py-3 transition hover:bg-brand-50/40 sm:gap-4"
+                    >
+                      <span className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums text-slate-600">
+                        {b.timeSlot}
+                      </span>
+
+                      {/* Timeline rail — a continuous line with a status-colored marker */}
+                      <div className="relative flex w-4 shrink-0 items-center justify-center self-stretch">
+                        <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-slate-100 transition group-hover:bg-brand-200" />
+                        <span
+                          className={`relative h-2.5 w-2.5 rounded-full ring-4 ring-white ${STATUS_META[b.status].dot}`}
+                        />
+                      </div>
+
+                      <Avatar firstName={b.firstName} lastName={b.lastName} />
+
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-slate-800 transition group-hover:text-brand-800">
+                          {fullName(b.firstName, b.lastName)}
+                        </p>
+                        <p className="truncate text-xs text-slate-400">
+                          {b.unitNumber}
+                        </p>
+                      </div>
+
+                      <StatusBadge status={b.status} />
+
+                      <ChevronRight
+                        size={16}
+                        className="hidden shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand-500 sm:block"
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )
+          })}
+
+          <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-soft">
             <Pagination
               page={page}
               pageSize={pageSize}

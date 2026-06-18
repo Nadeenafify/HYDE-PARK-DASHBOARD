@@ -62,18 +62,18 @@ export function BookingsTable({
   }, [query, statusFilter, setPage])
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-soft">
       <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-xs">
+        <div className="group relative w-full sm:max-w-xs">
           <Search
             size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-brand-600"
           />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search unit, name, mobile…"
-            className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15"
           />
         </div>
 
@@ -86,9 +86,9 @@ export function BookingsTable({
                 key={s}
                 type="button"
                 onClick={() => setStatusFilter(s)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
                   active
-                    ? 'bg-slate-900 text-white'
+                    ? 'bg-linear-to-r from-slate-900 to-slate-700 text-white shadow-sm'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
@@ -107,12 +107,12 @@ export function BookingsTable({
       <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
-              <th className="px-5 py-3 font-medium">Owner / Unit</th>
-              <th className="px-5 py-3 font-medium">Mobile</th>
-              <th className="px-5 py-3 font-medium">Installation</th>
-              <th className="px-5 py-3 font-medium">Receipt</th>
-              <th className="px-5 py-3 font-medium">Status</th>
+            <tr className="border-b border-slate-100 bg-slate-50/60 text-xs uppercase tracking-wide text-slate-400">
+              <th className="px-5 py-3 font-semibold">Owner / Unit</th>
+              <th className="px-5 py-3 font-semibold">Mobile</th>
+              <th className="px-5 py-3 font-semibold">Installation</th>
+              <th className="px-5 py-3 font-semibold">Receipt</th>
+              <th className="px-5 py-3 font-semibold">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -120,7 +120,7 @@ export function BookingsTable({
               <tr
                 key={b.id}
                 onClick={() => onSelect(b)}
-                className="cursor-pointer border-b border-slate-50 transition last:border-0 hover:bg-slate-50/80"
+                className="cursor-pointer border-b border-slate-50 transition-colors last:border-0 hover:bg-brand-50/40"
               >
                 <td className="px-5 py-3">
                   <div className="flex items-center gap-3">
@@ -161,7 +161,7 @@ export function BookingsTable({
             key={b.id}
             type="button"
             onClick={() => onSelect(b)}
-            className="flex w-full flex-col gap-3 px-5 py-4 text-left transition hover:bg-slate-50/80"
+            className="flex w-full flex-col gap-3 px-5 py-4 text-left transition hover:bg-brand-50/40"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -227,7 +227,7 @@ function InstallationCell({
       <div className="flex items-center gap-2">
         <span className="text-slate-700">{formatDate(installationDate)}</span>
         {isToday(installationDate) && (
-          <span className="rounded bg-teal-700/10 px-1.5 py-0.5 text-[10px] font-semibold text-teal-700">
+          <span className="rounded-md bg-brand-100 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-brand-700 ring-1 ring-inset ring-brand-200">
             TODAY
           </span>
         )}

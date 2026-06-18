@@ -55,29 +55,33 @@ export function BookingDetail({
   if (!booking) return null
 
   return (
-    <div className="fixed inset-0 z-40 flex justify-end">
+    <div className="fixed inset-0 z-50 flex justify-end">
       <div
-        className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm"
+        className="animate-fade absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="relative z-10 flex h-full w-full max-w-md flex-col bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-              Booking #{booking.id}
-            </p>
-            <h2 className="text-lg font-semibold text-slate-900">
-              Unit {booking.unitNumber}
-            </h2>
+      <div className="animate-slide-in relative z-10 flex h-full w-full max-w-md flex-col bg-white shadow-pop">
+        <div className="relative overflow-hidden border-b border-slate-100 bg-linear-to-br from-slate-900 to-slate-800 px-6 py-5">
+          <span className="pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full bg-brand-500/20" />
+          <span className="pointer-events-none absolute -bottom-10 right-10 h-20 w-20 rounded-full bg-white/5" />
+          <div className="relative flex items-start justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-brand-300/80">
+                Booking #{booking.id}
+              </p>
+              <h2 className="mt-0.5 text-lg font-bold text-white">
+                Unit {booking.unitNumber}
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-2 text-white/60 transition hover:bg-white/10 hover:text-white"
+            >
+              <X size={18} />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-          >
-            <X size={18} />
-          </button>
         </div>
 
         <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
@@ -94,14 +98,14 @@ export function BookingDetail({
             </span>
           </div>
 
-          <div className="space-y-4 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+          <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
             <Field icon={<Home size={16} />} label="Unit Number / رقم الوحدة">
               {booking.unitNumber}
             </Field>
             <Field icon={<Phone size={16} />} label="Mobile / رقم التليفون">
               <a
                 href={`tel:${booking.mobile}`}
-                className="text-teal-700 hover:underline"
+                className="font-medium text-brand-700 hover:underline"
               >
                 {formatMobile(booking.mobile)}
               </a>
@@ -118,7 +122,7 @@ export function BookingDetail({
                   href={booking.receiptUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 text-teal-700 hover:underline"
+                  className="inline-flex items-center gap-1.5 font-medium text-brand-700 hover:underline"
                 >
                   <CheckCircle2 size={14} /> View receipt
                 </a>
@@ -159,9 +163,9 @@ export function BookingDetail({
                     key={s}
                     type="button"
                     onClick={() => onStatusChange(booking.id, s)}
-                    className={`flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                    className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition ${
                       active
-                        ? 'border-slate-900 bg-slate-900 text-white'
+                        ? 'border-slate-900 bg-linear-to-r from-slate-900 to-slate-800 text-white shadow-sm'
                         : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
                     }`}
                   >

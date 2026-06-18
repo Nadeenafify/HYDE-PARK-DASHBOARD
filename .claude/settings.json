@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($p = Start-Process npm -ArgumentList \"run\",\"dev\",\"--\",\"--port\",\"5199\",\"--strictPort\" -PassThru -RedirectStandardOutput dev.log -RedirectStandardError dev.err -NoNewWindow; Start-Sleep -Seconds 6; try { $r = Invoke-WebRequest http://localhost:5199 -UseBasicParsing -TimeoutSec 5; Write-Output \"ROOT HTTP $\\($r.StatusCode\\)\"; $j = Invoke-WebRequest \"http://localhost:5199/src/main.tsx\" -UseBasicParsing -TimeoutSec 5; Write-Output \"MAIN HTTP $\\($j.StatusCode\\), bytes=$\\($j.RawContentLength\\)\" } catch { Write-Output \"REQ ERR: $_\" }; Stop-Process -Id $p.Id -Force; Write-Output \"---LOG---\"; Get-Content dev.log,dev.err -ErrorAction SilentlyContinue; Remove-Item dev.log,dev.err -ErrorAction SilentlyContinue)"
+    ]
+  }
+}

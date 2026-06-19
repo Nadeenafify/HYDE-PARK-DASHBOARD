@@ -3,11 +3,11 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { BookingStatus } from '../types'
 import { STATUS_META, initials } from '../lib/utils'
 
-/** Hyde Park Developments "H" monogram, served as a PNG from /public. */
+/** Hyde Park Developments "H" monogram — transparent SVG served from /public. */
 export function Logo({ className = 'h-9 w-9' }: { className?: string }) {
   return (
     <img
-      src="/HYDEPARK_ICON.png"
+      src="/logo.svg"
       alt="Hyde Park Developments"
       className={`object-contain ${className}`}
     />

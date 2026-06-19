@@ -1,5 +1,12 @@
 import { useRef, useState } from 'react'
-import { FileSpreadsheet, Database, Upload } from 'lucide-react'
+import {
+  FileSpreadsheet,
+  Database,
+  Upload,
+  CheckCircle2,
+  XCircle,
+} from 'lucide-react'
+import type { ReactNode } from 'react'
 import type { Booking } from '../types'
 import { SectionCard } from './ui'
 import { api } from '../lib/api'
@@ -7,8 +14,48 @@ import { exportBookingsToExcel, downloadJson } from '../lib/exporters'
 
 type Busy = null | 'export' | 'backup' | 'restore'
 
-const BTN =
-  'inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60'
+function Tile({
+  onClick,
+  disabled,
+  busy,
+  label,
+  busyLabel,
+  sub,
+  icon,
+  iconClass,
+  borderClass,
+}: {
+  onClick: () => void
+  disabled: boolean
+  busy: boolean
+  label: string
+  busyLabel: string
+  sub: string
+  icon: ReactNode
+  iconClass: string
+  borderClass: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`group flex flex-col items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:shadow-card disabled:opacity-60 disabled:hover:translate-y-0 ${borderClass}`}
+    >
+      <span
+        className={`flex h-10 w-10 items-center justify-center rounded-xl ring-1 transition group-hover:scale-105 ${iconClass}`}
+      >
+        {icon}
+      </span>
+      <div>
+        <p className="text-sm font-semibold text-slate-800">
+          {busy ? busyLabel : label}
+        </p>
+        <p className="mt-0.5 text-xs text-slate-400">{sub}</p>
+      </div>
+    </button>
+  )
+}
 
 export function DataTools({
   bookings,
@@ -80,26 +127,43 @@ export function DataTools({
 
   return (
     <SectionCard title="Backup & export" className="mt-6">
-      <div className="space-y-3 px-5 py-5">
+      <div className="space-y-4 px-5 py-5">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <button type="button" onClick={handleExport} disabled={busy !== null} className={BTN}>
-            <FileSpreadsheet size={16} />
-            {busy === 'export' ? 'Exporting…' : 'Export bookings (Excel)'}
-          </button>
-          <button type="button" onClick={handleBackup} disabled={busy !== null} className={BTN}>
-            <Database size={16} />
-            {busy === 'backup' ? 'Backing up…' : 'Download backup'}
-          </button>
-          <button
-            type="button"
+          <Tile
+            onClick={handleExport}
+            disabled={busy !== null}
+            busy={busy === 'export'}
+            label="Export bookings"
+            busyLabel="Exporting…"
+            sub="Spreadsheet (.xlsx)"
+            icon={<FileSpreadsheet size={18} />}
+            iconClass="bg-emerald-50 text-emerald-600 ring-emerald-100"
+            borderClass="hover:border-emerald-200"
+          />
+          <Tile
+            onClick={handleBackup}
+            disabled={busy !== null}
+            busy={busy === 'backup'}
+            label="Download backup"
+            busyLabel="Backing up…"
+            sub="Full copy (.json)"
+            icon={<Database size={18} />}
+            iconClass="bg-sky-50 text-sky-600 ring-sky-100"
+            borderClass="hover:border-sky-200"
+          />
+          <Tile
             onClick={() => fileRef.current?.click()}
             disabled={busy !== null}
-            className={BTN}
-          >
-            <Upload size={16} />
-            {busy === 'restore' ? 'Restoring…' : 'Restore from backup'}
-          </button>
+            busy={busy === 'restore'}
+            label="Restore from backup"
+            busyLabel="Restoring…"
+            sub="Upload a backup file"
+            icon={<Upload size={18} />}
+            iconClass="bg-amber-50 text-amber-600 ring-amber-100"
+            borderClass="hover:border-amber-200"
+          />
         </div>
+
         <input
           ref={fileRef}
           type="file"
@@ -107,19 +171,26 @@ export function DataTools({
           className="hidden"
           onChange={handleRestoreFile}
         />
+
         {msg && (
-          <p
-            className={`text-xs font-medium ${
-              msg.ok ? 'text-emerald-600' : 'text-rose-600'
+          <div
+            className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium ring-1 ${
+              msg.ok
+                ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+                : 'bg-rose-50 text-rose-700 ring-rose-100'
             }`}
           >
+            {msg.ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
             {msg.text}
-          </p>
+          </div>
         )}
+
         <p className="text-[11px] leading-relaxed text-slate-400">
-          <b>Export</b> = a spreadsheet of bookings. <b>Backup</b> = a full copy of
-          all data (JSON). <b>Restore</b> re-adds missing records from a backup —
-          existing data is never deleted.
+          <b className="font-semibold text-slate-500">Export</b> a spreadsheet of
+          bookings · <b className="font-semibold text-slate-500">Backup</b> a full
+          copy of all data ·{' '}
+          <b className="font-semibold text-slate-500">Restore</b> re-adds missing
+          records (existing data is never deleted).
         </p>
       </div>
     </SectionCard>

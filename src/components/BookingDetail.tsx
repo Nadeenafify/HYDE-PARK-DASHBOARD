@@ -163,12 +163,13 @@ export function BookingDetail({
             </Field>
             {(booking.postponeCount ?? 0) > 0 && (
               <Field icon={<History size={16} />} label="Original / الموعد الأصلي">
-                {booking.originalDate
-                  ? `${formatDate(booking.originalDate)} · ${booking.originalTime ?? ''}`
-                  : '—'}
-                <span className="text-xs text-slate-400">
-                  {' '}
-                  · مؤجل {booking.postponeCount}×
+                <p className="text-slate-800">
+                  {booking.originalDate
+                    ? `${formatDate(booking.originalDate)} · ${booking.originalTime ?? ''}`
+                    : '—'}
+                </p>
+                <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
+                  <History size={11} /> Postponed {booking.postponeCount}× · مؤجل
                 </span>
               </Field>
             )}

@@ -230,28 +230,32 @@ export function Units({
               {pageItems.map((u) => (
                 <li
                   key={u.id}
-                  className="group flex items-center gap-3 px-5 py-3 transition hover:bg-slate-50/80"
+                  className="group flex items-center gap-3.5 px-5 py-3.5 transition hover:bg-slate-50/80"
                 >
                   <span
-                    className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br shadow-sm transition group-hover:scale-105 ${
                       u.booked
-                        ? 'bg-brand-100 text-brand-600'
-                        : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'
+                        ? 'from-brand-500 to-brand-700 text-white'
+                        : 'from-slate-100 to-slate-200 text-slate-500'
                     }`}
                   >
-                    <Building2 size={16} />
+                    <Building2 size={17} />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-slate-800">
+                    <p className="truncate font-semibold text-slate-800">
                       {u.unitNumber}
                     </p>
-                    <p className="text-xs text-slate-400">
-                      {[u.type, u.owner].filter(Boolean).join(' · ') || '—'}
+                    <p className="truncate text-xs text-slate-400">
+                      {[u.type, u.owner].filter(Boolean).join(' · ') || 'No type set'}
                     </p>
                   </div>
-                  {u.booked && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600 ring-1 ring-inset ring-emerald-600/20">
-                      <CheckCircle2 size={13} /> Booked
+                  {u.booked ? (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                      <CheckCircle2 size={12} /> Booked
+                    </span>
+                  ) : (
+                    <span className="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">
+                      Available
                     </span>
                   )}
                 </li>

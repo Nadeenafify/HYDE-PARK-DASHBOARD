@@ -247,6 +247,12 @@ export const api = {
     return mapUnit(res ?? { code: payload.unitNumber, description: payload.type })
   },
 
+  /** Import many units at once (e.g. parsed from an Excel file). */
+  importUnits: async (
+    units: { code: string; description?: string }[],
+  ): Promise<{ created: number; skipped: number; total: number }> =>
+    request('/units/bulk', jsonInit('POST', { units })),
+
   getBookings: async (status?: BookingStatus): Promise<Booking[]> => {
     const qs = status ? `?status=${encodeURIComponent(status)}` : ''
     return asArray(await request<unknown>(`/bookings${qs}`)).map(mapBooking)

@@ -39,6 +39,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     updateStatus,
     postpone,
     addUnit,
+    importUnits,
     loadDemo,
   } = useDashboard()
 
@@ -166,7 +167,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               {view === 'schedule' && (
                 <Schedule bookings={bookings} onSelect={(b) => setSelectedId(b.id)} />
               )}
-              {view === 'units' && <Units units={units} onAdd={addUnit} />}
+              {view === 'units' && (
+                <Units units={units} onAdd={addUnit} onImport={importUnits} />
+              )}
             </>
           )}
         </main>

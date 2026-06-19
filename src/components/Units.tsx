@@ -1,10 +1,72 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Building2, Plus, CheckCircle2, Search } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Building2, Plus, CheckCircle2, Search, Upload } from 'lucide-react'
 import type { Unit } from '../types'
 import { SectionCard, Pagination } from './ui'
 import { usePagination } from '../hooks/usePagination'
 
 type BookedFilter = 'all' | 'available' | 'booked'
+
+// Tolerant header matching so common English/Arabic column names all work.
+const CODE_KEYS = [
+  'code', 'unit', 'unit number', 'unitnumber', 'unit_code', 'unit code',
+  'رقم الوحدة', 'الوحدة', 'الوحده', 'رقم',
+]
+const DESC_KEYS = [
+  'description', 'type', 'desc', 'نوع', 'النوع', 'الوصف', 'وصف',
+]
+
+function norm(v: unknown): string {
+  return String(v ?? '').trim().toLowerCase()
+}
+
+/**
+ * Parse an .xlsx/.csv into unit rows. Works with or without a header row:
+ * if the first row looks like headers we map by column name, otherwise the
+ * first column is the code and the second (if any) is the description.
+ */
+async function parseUnitsFile(
+  file: File,
+): Promise<{ code: string; description?: string }[]> {
+  // Lazy-load SheetJS only when an import actually happens (keeps the main
+  // bundle small).
+  const XLSX = await import('xlsx')
+  const buf = await file.arrayBuffer()
+  const wb = XLSX.read(buf, { type: 'array' })
+  const sheet = wb.Sheets[wb.SheetNames[0]]
+  if (!sheet) return []
+  const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+    header: 1,
+    blankrows: false,
+    defval: '',
+  })
+  if (!rows.length) return []
+
+  const first = (rows[0] as unknown[]).map((c) => norm(c))
+  const hasHeader = first.some(
+    (c) => CODE_KEYS.includes(c) || DESC_KEYS.includes(c),
+  )
+
+  let codeIdx = 0
+  let descIdx = 1
+  let dataRows = rows
+  if (hasHeader) {
+    const ci = first.findIndex((c) => CODE_KEYS.includes(c))
+    const di = first.findIndex((c) => DESC_KEYS.includes(c))
+    codeIdx = ci >= 0 ? ci : 0
+    descIdx = di
+    dataRows = rows.slice(1)
+  }
+
+  const out: { code: string; description?: string }[] = []
+  for (const r of dataRows) {
+    const arr = r as unknown[]
+    const code = String(arr[codeIdx] ?? '').trim()
+    if (!code) continue
+    const description = descIdx >= 0 ? String(arr[descIdx] ?? '').trim() : ''
+    out.push({ code, description: description || undefined })
+  }
+  return out
+}
 
 const BOOKED_FILTERS: { key: BookedFilter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -15,15 +77,58 @@ const BOOKED_FILTERS: { key: BookedFilter; label: string }[] = [
 export function Units({
   units,
   onAdd,
+  onImport,
 }: {
   units: Unit[]
   onAdd: (payload: { unitNumber: string; type?: string; owner?: string }) => Promise<void>
+  onImport: (
+    units: { code: string; description?: string }[],
+  ) => Promise<{ created: number; skipped: number; total: number }>
 }) {
   const [unitNumber, setUnitNumber] = useState('')
   const [type, setType] = useState('')
   const [owner, setOwner] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Excel import
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [importing, setImporting] = useState(false)
+  const [importMsg, setImportMsg] = useState<{ ok: boolean; text: string } | null>(
+    null,
+  )
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-selecting the same file later
+    if (!file) return
+    setImporting(true)
+    setImportMsg(null)
+    try {
+      const rows = await parseUnitsFile(file)
+      if (rows.length === 0) {
+        setImportMsg({
+          ok: false,
+          text: 'No unit codes found in the file.',
+        })
+        return
+      }
+      const result = await onImport(rows)
+      setImportMsg({
+        ok: true,
+        text: `Imported ${result.created} unit${
+          result.created === 1 ? '' : 's'
+        }${result.skipped ? `, skipped ${result.skipped} (duplicate/empty)` : ''}.`,
+      })
+    } catch (err) {
+      setImportMsg({
+        ok: false,
+        text: err instanceof Error ? err.message : 'Import failed.',
+      })
+    } finally {
+      setImporting(false)
+    }
+  }
 
   // List filters
   const [query, setQuery] = useState('')
@@ -208,6 +313,40 @@ export function Units({
             <Plus size={16} /> {saving ? 'Adding…' : 'Add unit'}
           </button>
         </form>
+
+        <div className="border-t border-slate-100 px-5 py-4">
+          <p className="mb-2 text-xs font-medium text-slate-500">
+            Or import many at once
+          </p>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={importing}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Upload size={16} /> {importing ? 'Importing…' : 'Import from Excel'}
+          </button>
+          {importMsg && (
+            <p
+              className={`mt-2 text-xs font-medium ${
+                importMsg.ok ? 'text-emerald-600' : 'text-rose-600'
+              }`}
+            >
+              {importMsg.text}
+            </p>
+          )}
+          <p className="mt-2 text-[11px] text-slate-400">
+            .xlsx / .csv — a column of unit codes (optional “type” column).
+            Duplicates are skipped.
+          </p>
+        </div>
       </SectionCard>
     </div>
   )

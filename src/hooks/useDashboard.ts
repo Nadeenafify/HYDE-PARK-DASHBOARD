@@ -19,6 +19,9 @@ export interface DashboardState {
   ) => Promise<void>
   deleteBooking: (id: string) => Promise<void>
   addUnit: (payload: { unitNumber: string; type?: string; owner?: string }) => Promise<void>
+  importUnits: (
+    units: { code: string; description?: string }[],
+  ) => Promise<{ created: number; skipped: number; total: number }>
   /** Populate with bundled demo data when the backend is unavailable. */
   loadDemo: (bookings: Booking[]) => void
 }
@@ -115,6 +118,15 @@ export function useDashboard(): DashboardState {
     [],
   )
 
+  const importUnits = useCallback(
+    async (units: { code: string; description?: string }[]) => {
+      const result = await api.importUnits(units)
+      await reload()
+      return result
+    },
+    [reload],
+  )
+
   const loadDemo = useCallback((demo: Booking[]) => {
     setBookings(demo)
     setError(null)
@@ -132,6 +144,7 @@ export function useDashboard(): DashboardState {
     postpone,
     deleteBooking,
     addUnit,
+    importUnits,
     loadDemo,
   }
 }

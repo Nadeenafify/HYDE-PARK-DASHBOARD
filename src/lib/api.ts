@@ -248,8 +248,17 @@ export const api = {
 
   updateUser: (
     id: string,
-    payload: { name?: string; role?: Role; isActive?: boolean; password?: string },
+    payload: {
+      name?: string
+      email?: string
+      role?: Role
+      isActive?: boolean
+      password?: string
+    },
   ): Promise<AppUser> => request(`/users/${id}`, jsonInit('PATCH', payload)),
+
+  deleteUser: (id: string): Promise<void> =>
+    request(`/users/${id}`, { method: 'DELETE' }),
 
   getUnits: async (): Promise<Unit[]> =>
     asArray(await request<unknown>('/units')).map(mapUnit),

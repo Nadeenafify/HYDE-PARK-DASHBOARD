@@ -106,10 +106,12 @@ export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
   // edit modal
   const [editing, setEditing] = useState<AppUser | null>(null)
   const [eName, setEName] = useState('')
+  const [eEmail, setEEmail] = useState('')
   const [eRole, setERole] = useState<Role>('viewer')
   const [eActive, setEActive] = useState(true)
   const [ePassword, setEPassword] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -153,6 +155,7 @@ export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
   function openEdit(u: AppUser) {
     setEditing(u)
     setEName(u.name)
+    setEEmail(u.email)
     setERole(u.role)
     setEActive(u.isActive)
     setEPassword('')
@@ -164,10 +167,14 @@ export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
     try {
       const payload: {
         name?: string
+        email?: string
         role?: Role
         isActive?: boolean
         password?: string
       } = { name: eName.trim() }
+      if (eEmail.trim().toLowerCase() !== editing.email) {
+        payload.email = eEmail.trim()
+      }
       const self = editing.id === currentUserId
       if (!self) {
         payload.role = eRole
@@ -182,6 +189,23 @@ export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
       toast.error(err instanceof Error ? err.message : 'Could not save changes.')
     } finally {
       setSavingEdit(false)
+    }
+  }
+
+  async function removeUser() {
+    if (!editing) return
+    if (!window.confirm(`Delete ${editing.name}? This cannot be undone.`)) return
+    const { id, name } = editing
+    setDeleting(true)
+    try {
+      await api.deleteUser(id)
+      setUsers((prev) => prev.filter((u) => u.id !== id))
+      setEditing(null)
+      toast.success(`${name} deleted`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not delete user.')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -300,14 +324,12 @@ export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
 
             <div className="space-y-3">
               <Field label="Name" value={eName} onChange={setEName} />
-              <div>
-                <label className="text-xs font-medium text-slate-500">Email</label>
-                <input
-                  value={editing.email}
-                  disabled
-                  className="mt-1 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-400"
-                />
-              </div>
+              <Field
+                label="Email"
+                type="email"
+                value={eEmail}
+                onChange={setEEmail}
+              />
               <div>
                 <label className="text-xs font-medium text-slate-500">Role</label>
                 <RoleSelect
@@ -342,22 +364,42 @@ export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
               </label>
             </div>
 
-            <div className="mt-5 flex gap-2">
-              <button
-                type="button"
-                onClick={saveEdit}
-                disabled={savingEdit || !eName.trim() || (!!ePassword && ePassword.length < 6)}
-                className="flex-1 rounded-xl bg-linear-to-r from-brand-600 to-brand-700 px-3 py-2.5 text-sm font-semibold text-white transition hover:from-brand-500 hover:to-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {savingEdit ? 'Saving…' : 'Save changes'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditing(null)}
-                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
-              >
-                Cancel
-              </button>
+            <div className="mt-5 flex items-center justify-between gap-2">
+              {editing.id !== currentUserId ? (
+                <button
+                  type="button"
+                  onClick={removeUser}
+                  disabled={deleting || savingEdit}
+                  className="rounded-xl border border-rose-200 px-3 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {deleting ? 'Deleting…' : 'Delete'}
+                </button>
+              ) : (
+                <span />
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditing(null)}
+                  className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={saveEdit}
+                  disabled={
+                    savingEdit ||
+                    deleting ||
+                    !eName.trim() ||
+                    !eEmail.trim() ||
+                    (!!ePassword && ePassword.length < 6)
+                  }
+                  className="rounded-xl bg-linear-to-r from-brand-600 to-brand-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:from-brand-500 hover:to-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {savingEdit ? 'Saving…' : 'Save changes'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

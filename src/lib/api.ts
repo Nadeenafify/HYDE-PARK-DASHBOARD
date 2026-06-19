@@ -1,4 +1,12 @@
-import type { AppUser, Booking, BookingStatus, Role, TimeSlot, Unit } from '../types'
+import type {
+  ActivityLog,
+  AppUser,
+  Booking,
+  BookingStatus,
+  Role,
+  TimeSlot,
+  Unit,
+} from '../types'
 import { TIME_SLOTS } from '../types'
 import { getToken, clearToken, notifyUnauthorized } from './auth'
 
@@ -259,6 +267,10 @@ export const api = {
 
   deleteUser: (id: string): Promise<void> =>
     request(`/users/${id}`, { method: 'DELETE' }),
+
+  /** Activity log (Super Admin only). */
+  listLogs: (action?: string): Promise<ActivityLog[]> =>
+    request(`/logs${action ? `?action=${encodeURIComponent(action)}` : ''}`),
 
   getUnits: async (): Promise<Unit[]> =>
     asArray(await request<unknown>('/units')).map(mapUnit),

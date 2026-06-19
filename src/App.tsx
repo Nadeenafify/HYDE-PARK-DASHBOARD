@@ -19,6 +19,7 @@ import { Units } from './components/Units'
 import { BookingDetail } from './components/BookingDetail'
 import { DataTools } from './components/DataTools'
 import { UsersAdmin } from './components/UsersAdmin'
+import { LogsView } from './components/LogsView'
 import { useToast } from './components/Toast'
 import type { AppUser } from './types'
 import { ROLE_LABELS } from './types'
@@ -29,6 +30,7 @@ const VIEW_META: Record<View, { title: string; subtitle: string }> = {
   schedule: { title: 'Schedule', subtitle: 'Upcoming installation appointments' },
   units: { title: 'Units', subtitle: 'Registered units' },
   users: { title: 'Users', subtitle: 'Accounts & roles' },
+  logs: { title: 'Logs', subtitle: 'Who did what, and when' },
 }
 
 function Dashboard({
@@ -234,6 +236,7 @@ function Dashboard({
               {view === 'users' && isSuperAdmin && (
                 <UsersAdmin currentUserId={currentUser?.id} />
               )}
+              {view === 'logs' && isSuperAdmin && <LogsView />}
             </>
           )}
         </main>

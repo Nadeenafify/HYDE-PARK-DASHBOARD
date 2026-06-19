@@ -39,6 +39,17 @@ export interface AppUser {
   isActive: boolean
 }
 
+/** An activity-log entry (who did what, when). */
+export interface ActivityLog {
+  id: string
+  userId: string | null
+  userName: string | null
+  userEmail: string | null
+  action: string
+  description: string
+  createdAt: string
+}
+
 /** A unit available for / referenced by bookings (GET/POST /api/units). */
 export interface Unit {
   id: string

@@ -4,12 +4,19 @@ import {
   CalendarDays,
   Building2,
   Users,
+  History,
   X,
 } from 'lucide-react'
 import { Logo } from './ui'
 import type { HealthState } from '../hooks/useDashboard'
 
-export type View = 'overview' | 'bookings' | 'schedule' | 'units' | 'users'
+export type View =
+  | 'overview'
+  | 'bookings'
+  | 'schedule'
+  | 'units'
+  | 'users'
+  | 'logs'
 
 const NAV: {
   id: View
@@ -23,6 +30,7 @@ const NAV: {
   { id: 'schedule', label: 'Schedule', sub: 'جدول التركيب', icon: CalendarDays },
   { id: 'units', label: 'Units', sub: 'الوحدات', icon: Building2 },
   { id: 'users', label: 'Users', sub: 'المستخدمون', icon: Users, superOnly: true },
+  { id: 'logs', label: 'Logs', sub: 'السجل', icon: History, superOnly: true },
 ]
 
 const HEALTH_META: Record<HealthState, { dot: string; ring: string; label: string }> = {

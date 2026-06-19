@@ -143,9 +143,12 @@ export function LogsView() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-slate-800">{l.description}</p>
-                    <p className="text-xs text-slate-400">{l.userName ?? 'System'}</p>
+                    <p className="text-xs text-slate-400">
+                      {l.userName ?? 'System'}
+                      <span className="sm:hidden"> · {formatDateTime(l.createdAt)}</span>
+                    </p>
                   </div>
-                  <span className="shrink-0 whitespace-nowrap text-xs text-slate-400">
+                  <span className="hidden shrink-0 whitespace-nowrap text-xs text-slate-400 sm:block">
                     {formatDateTime(l.createdAt)}
                   </span>
                 </li>

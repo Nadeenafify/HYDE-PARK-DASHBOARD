@@ -237,6 +237,23 @@ export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
                       {self && <span className="text-xs text-slate-400">(you)</span>}
                     </p>
                     <p className="truncate text-xs text-slate-400">{u.email}</p>
+                    {/* badges shown under the email on mobile */}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 sm:hidden">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${tone.badge}`}
+                      >
+                        {ROLE_LABELS[u.role]}
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${
+                          u.isActive
+                            ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+                            : 'bg-slate-100 text-slate-500 ring-slate-200'
+                        }`}
+                      >
+                        {u.isActive ? 'Active' : 'Disabled'}
+                      </span>
+                    </div>
                   </div>
                   <span
                     className={`hidden shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset sm:inline-block ${tone.badge}`}
@@ -244,7 +261,7 @@ export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
                     {ROLE_LABELS[u.role]}
                   </span>
                   <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${
+                    className={`hidden shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset sm:inline-block ${
                       u.isActive
                         ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
                         : 'bg-slate-100 text-slate-500 ring-slate-200'

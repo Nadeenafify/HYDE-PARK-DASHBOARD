@@ -37,7 +37,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     error,
     reload,
     updateStatus,
-    deleteBooking,
     addUnit,
     loadDemo,
   } = useDashboard()
@@ -49,11 +48,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 
   function handleStatus(id: string, status: Parameters<typeof updateStatus>[1]) {
     void updateStatus(id, status).catch(() => {})
-  }
-
-  function handleDelete(id: string) {
-    void deleteBooking(id).catch(() => {})
-    setSelectedId(null)
   }
 
   const meta = VIEW_META[view]
@@ -181,7 +175,6 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         booking={selected}
         onClose={() => setSelectedId(null)}
         onStatusChange={handleStatus}
-        onDelete={handleDelete}
       />
     </div>
   )

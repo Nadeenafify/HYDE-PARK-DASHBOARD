@@ -6,7 +6,6 @@ import {
   FileImage,
   CheckCircle2,
   XCircle,
-  Trash2,
 } from 'lucide-react'
 import type { Booking, BookingStatus } from '../types'
 import { STATUSES } from '../types'
@@ -45,14 +44,15 @@ export function BookingDetail({
   booking,
   onClose,
   onStatusChange,
-  onDelete,
 }: {
   booking: Booking | null
   onClose: () => void
   onStatusChange: (id: string, status: BookingStatus) => void
-  onDelete: (id: string) => void
 }) {
   if (!booking) return null
+
+  // The raw id is a long UUID — show a short, readable reference instead.
+  const shortId = booking.id.slice(0, 8).toUpperCase()
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -67,8 +67,11 @@ export function BookingDetail({
           <span className="pointer-events-none absolute -bottom-10 right-10 h-20 w-20 rounded-full bg-white/5" />
           <div className="relative flex items-start justify-between">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-brand-300/80">
-                Booking #{booking.id}
+              <p
+                className="text-xs font-medium uppercase tracking-wide text-brand-300/80"
+                title={`Booking ${booking.id}`}
+              >
+                Booking #{shortId}
               </p>
               <h2 className="mt-0.5 text-lg font-bold text-white">
                 Unit {booking.unitNumber}
@@ -84,6 +87,7 @@ export function BookingDetail({
           </div>
         </div>
 
+        {/* Scrollable details */}
         <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
           <div className="flex items-center gap-3">
             <Avatar firstName={booking.firstName} lastName={booking.lastName} />
@@ -149,7 +153,10 @@ export function BookingDetail({
               )}
             </Field>
           </div>
+        </div>
 
+        {/* Pinned action footer */}
+        <div className="space-y-3 border-t border-slate-100 bg-white px-6 py-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
               Update status
@@ -176,19 +183,9 @@ export function BookingDetail({
               })}
             </div>
           </div>
-
-          <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-            <p className="text-xs text-slate-400">
-              Submitted {formatDateTime(booking.submittedAt)}
-            </p>
-            <button
-              type="button"
-              onClick={() => onDelete(booking.id)}
-              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
-            >
-              <Trash2 size={15} /> Delete
-            </button>
-          </div>
+          <p className="text-xs text-slate-400">
+            Submitted {formatDateTime(booking.submittedAt)}
+          </p>
         </div>
       </div>
     </div>

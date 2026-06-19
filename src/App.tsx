@@ -37,6 +37,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     error,
     reload,
     updateStatus,
+    postpone,
     addUnit,
     loadDemo,
   } = useDashboard()
@@ -172,9 +173,11 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
       </div>
 
       <BookingDetail
+        key={selected?.id}
         booking={selected}
         onClose={() => setSelectedId(null)}
         onStatusChange={handleStatus}
+        onPostpone={postpone}
       />
     </div>
   )

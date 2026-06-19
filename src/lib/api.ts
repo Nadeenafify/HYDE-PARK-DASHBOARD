@@ -184,6 +184,18 @@ export function mapBooking(raw: Record<string, unknown>): Booking {
       pick(raw, 'submittedAt', 'submitted_at', 'createdAt', 'created_at') ??
         new Date().toISOString(),
     ),
+    postponeCount: Number(pick(raw, 'postponeCount', 'postpone_count') ?? 0) || 0,
+    originalDate: (() => {
+      const d = pick(raw, 'originalDate', 'original_date')
+      return d ? str(d).slice(0, 10) : null
+    })(),
+    originalTime: (() => {
+      const t = pick(raw, 'originalTime', 'original_time')
+      return t ? normalizeTimeSlot(t) : null
+    })(),
+    postponeHistory: Array.isArray(raw.postponeHistory)
+      ? (raw.postponeHistory as Booking['postponeHistory'])
+      : null,
   }
 }
 
@@ -250,6 +262,19 @@ export const api = {
   updateStatus: async (id: string, status: BookingStatus): Promise<void> => {
     await request(`/bookings/${id}/status`, jsonInit('PATCH', { status }))
   },
+
+  /** Reschedule a booking to a new date/time; returns the updated booking. */
+  postpone: async (
+    id: string,
+    installationDate: string,
+    installationTime: string,
+  ): Promise<Booking> =>
+    mapBooking(
+      await request<Record<string, unknown>>(
+        `/bookings/${id}/postpone`,
+        jsonInit('PATCH', { installationDate, installationTime }),
+      ),
+    ),
 
   deleteBooking: async (id: string): Promise<void> => {
     await request(`/bookings/${id}`, { method: 'DELETE' })

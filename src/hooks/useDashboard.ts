@@ -12,6 +12,11 @@ export interface DashboardState {
   error: string | null
   reload: () => Promise<void>
   updateStatus: (id: string, status: BookingStatus) => Promise<void>
+  postpone: (
+    id: string,
+    installationDate: string,
+    installationTime: string,
+  ) => Promise<void>
   deleteBooking: (id: string) => Promise<void>
   addUnit: (payload: { unitNumber: string; type?: string; owner?: string }) => Promise<void>
   /** Populate with bundled demo data when the backend is unavailable. */
@@ -80,6 +85,14 @@ export function useDashboard(): DashboardState {
     [bookings],
   )
 
+  const postpone = useCallback(
+    async (id: string, installationDate: string, installationTime: string) => {
+      const updated = await api.postpone(id, installationDate, installationTime)
+      setBookings((prev) => prev.map((b) => (b.id === id ? updated : b)))
+    },
+    [],
+  )
+
   const deleteBooking = useCallback(
     async (id: string) => {
       const snapshot = bookings
@@ -116,6 +129,7 @@ export function useDashboard(): DashboardState {
     error,
     reload,
     updateStatus,
+    postpone,
     deleteBooking,
     addUnit,
     loadDemo,

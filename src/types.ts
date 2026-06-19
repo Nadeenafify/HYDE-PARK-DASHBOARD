@@ -31,6 +31,15 @@ export interface Unit {
   booked?: boolean
 }
 
+/** One entry in a booking's postpone history. */
+export interface PostponeRecord {
+  fromDate: string
+  fromTime: string
+  toDate: string
+  toTime: string
+  at: string
+}
+
 /** Mirrors the fields of the HPD Triple Play JotForm. */
 export interface Booking {
   id: string
@@ -47,4 +56,10 @@ export interface Booking {
   status: BookingStatus
   /** ISO datetime the form was submitted. */
   submittedAt: string
+  /** How many times the booking has been postponed (0/undefined if never). */
+  postponeCount?: number
+  /** Original installation date/time before the first postpone. */
+  originalDate?: string | null
+  originalTime?: string | null
+  postponeHistory?: PostponeRecord[] | null
 }

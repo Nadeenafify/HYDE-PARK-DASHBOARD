@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   X,
   Phone,
@@ -6,9 +7,10 @@ import {
   FileImage,
   CheckCircle2,
   XCircle,
+  History,
 } from 'lucide-react'
 import type { Booking, BookingStatus } from '../types'
-import { STATUSES } from '../types'
+import { STATUSES, TIME_SLOTS } from '../types'
 import {
   fullName,
   formatDate,
@@ -44,15 +46,46 @@ export function BookingDetail({
   booking,
   onClose,
   onStatusChange,
+  onPostpone,
 }: {
   booking: Booking | null
   onClose: () => void
   onStatusChange: (id: string, status: BookingStatus) => void
+  onPostpone: (id: string, date: string, time: string) => Promise<void>
 }) {
+  const [rescheduling, setRescheduling] = useState(false)
+  const [newDate, setNewDate] = useState('')
+  const [newTime, setNewTime] = useState('')
+  const [postponing, setPostponing] = useState(false)
+  const [postponeError, setPostponeError] = useState<string | null>(null)
+
   if (!booking) return null
 
   // The raw id is a long UUID — show a short, readable reference instead.
   const shortId = booking.id.slice(0, 8).toUpperCase()
+  const todayISO = new Date().toISOString().slice(0, 10)
+
+  function openReschedule() {
+    if (!booking) return
+    setNewDate(booking.installationDate)
+    setNewTime(booking.timeSlot)
+    setPostponeError(null)
+    setRescheduling(true)
+  }
+
+  async function doPostpone() {
+    if (!booking) return
+    setPostponeError(null)
+    setPostponing(true)
+    try {
+      await onPostpone(booking.id, newDate, newTime)
+      setRescheduling(false)
+    } catch (e) {
+      setPostponeError(e instanceof Error ? e.message : 'Failed to postpone.')
+    } finally {
+      setPostponing(false)
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -97,7 +130,12 @@ export function BookingDetail({
               </p>
               <p className="text-xs text-slate-400">Unit owner</p>
             </div>
-            <span className="ml-auto">
+            <span className="ml-auto flex items-center gap-1.5">
+              {(booking.postponeCount ?? 0) > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 ring-1 ring-amber-200">
+                  <History size={11} /> مؤجل
+                </span>
+              )}
               <StatusBadge status={booking.status} />
             </span>
           </div>
@@ -120,6 +158,17 @@ export function BookingDetail({
             >
               {formatDate(booking.installationDate)} · {booking.timeSlot}
             </Field>
+            {(booking.postponeCount ?? 0) > 0 && (
+              <Field icon={<History size={16} />} label="Original / الموعد الأصلي">
+                {booking.originalDate
+                  ? `${formatDate(booking.originalDate)} · ${booking.originalTime ?? ''}`
+                  : '—'}
+                <span className="text-xs text-slate-400">
+                  {' '}
+                  · مؤجل {booking.postponeCount}×
+                </span>
+              </Field>
+            )}
             <Field icon={<FileImage size={16} />} label="HPD Receipt / الإيصال">
               {booking.receiptUrl ? (
                 <a
@@ -157,6 +206,68 @@ export function BookingDetail({
 
         {/* Pinned action footer */}
         <div className="space-y-3 border-t border-slate-100 bg-white px-6 py-4">
+          {/* Postpone / reschedule */}
+          {rescheduling ? (
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Postpone to / تأجيل إلى
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  min={todayISO}
+                  value={newDate}
+                  onChange={(e) => setNewDate(e.target.value)}
+                  className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                />
+                <select
+                  value={newTime}
+                  onChange={(e) => setNewTime(e.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                >
+                  <option value="" disabled>
+                    Time
+                  </option>
+                  {TIME_SLOTS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {postponeError && (
+                <p className="text-xs font-medium text-rose-600">{postponeError}</p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={doPostpone}
+                  disabled={postponing || !newDate || !newTime}
+                  className="flex-1 rounded-lg bg-linear-to-r from-slate-900 to-slate-800 px-3 py-2 text-sm font-semibold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {postponing ? 'Saving…' : 'Confirm postpone'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRescheduling(false)}
+                  className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            booking.status !== 'cancelled' && (
+              <button
+                type="button"
+                onClick={openReschedule}
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+              >
+                <CalendarClock size={15} /> Postpone / تأجيل
+              </button>
+            )
+          )}
+
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
               Update status

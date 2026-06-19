@@ -78,12 +78,15 @@ export function Units({
   units,
   onAdd,
   onImport,
+  canManage,
 }: {
   units: Unit[]
   onAdd: (payload: { unitNumber: string; type?: string; owner?: string }) => Promise<void>
   onImport: (
     units: { code: string; description?: string }[],
   ) => Promise<{ created: number; skipped: number; total: number }>
+  /** Only Super Admins can add or import units. */
+  canManage: boolean
 }) {
   const [unitNumber, setUnitNumber] = useState('')
   const [type, setType] = useState('')
@@ -178,10 +181,10 @@ export function Units({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <div className={canManage ? 'grid grid-cols-1 gap-6 lg:grid-cols-3' : ''}>
       <SectionCard
         title={`Units (${units.length})`}
-        className="lg:col-span-2"
+        className={canManage ? 'lg:col-span-2' : ''}
         action={
           <div className="group relative w-44 sm:w-56">
             <Search
@@ -273,6 +276,7 @@ export function Units({
         )}
       </SectionCard>
 
+      {canManage && (
       <SectionCard title="Add unit">
         <form onSubmit={submit} className="space-y-3 px-5 py-5">
           <div>
@@ -348,6 +352,7 @@ export function Units({
           </p>
         </div>
       </SectionCard>
+      )}
     </div>
   )
 }

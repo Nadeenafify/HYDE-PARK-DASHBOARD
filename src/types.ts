@@ -21,6 +21,24 @@ export const STATUSES = [
 
 export type BookingStatus = (typeof STATUSES)[number]
 
+export const ROLES = ['super_admin', 'manager', 'viewer'] as const
+export type Role = (typeof ROLES)[number]
+
+export const ROLE_LABELS: Record<Role, string> = {
+  super_admin: 'Super Admin',
+  manager: 'Manager',
+  viewer: 'Viewer',
+}
+
+/** A dashboard account. */
+export interface AppUser {
+  id: string
+  name: string
+  email: string
+  role: Role
+  isActive: boolean
+}
+
 /** A unit available for / referenced by bookings (GET/POST /api/units). */
 export interface Unit {
   id: string

@@ -11,7 +11,7 @@ export function LoginPage({
 }: {
   onLogin: (username: string, password: string) => Promise<void>
 }) {
-  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -23,7 +23,7 @@ export function LoginPage({
     setError(null)
     setLoading(true)
     try {
-      await onLogin(username.trim(), password)
+      await onLogin(email.trim(), password)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed. Try again.')
       setLoading(false)
@@ -88,10 +88,10 @@ export function LoginPage({
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-brand-600"
               />
               <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
                 autoFocus
                 required
                 disabled={loading}

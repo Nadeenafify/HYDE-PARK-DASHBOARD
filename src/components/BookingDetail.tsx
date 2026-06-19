@@ -47,11 +47,14 @@ export function BookingDetail({
   onClose,
   onStatusChange,
   onPostpone,
+  canManage,
 }: {
   booking: Booking | null
   onClose: () => void
   onStatusChange: (id: string, status: BookingStatus) => void
   onPostpone: (id: string, date: string, time: string) => Promise<void>
+  /** Viewers (read-only) don't get the status / postpone controls. */
+  canManage: boolean
 }) {
   const [rescheduling, setRescheduling] = useState(false)
   const [newDate, setNewDate] = useState('')
@@ -206,6 +209,8 @@ export function BookingDetail({
 
         {/* Pinned action footer */}
         <div className="space-y-3 border-t border-slate-100 bg-white px-6 py-4">
+          {canManage && (
+            <>
           {/* Postpone / reschedule */}
           {rescheduling ? (
             <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
@@ -294,6 +299,8 @@ export function BookingDetail({
               })}
             </div>
           </div>
+            </>
+          )}
           <p className="text-xs text-slate-400">
             Submitted {formatDateTime(booking.submittedAt)}
           </p>

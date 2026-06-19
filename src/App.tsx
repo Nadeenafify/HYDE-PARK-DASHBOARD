@@ -18,15 +18,25 @@ import { Schedule } from './components/Schedule'
 import { Units } from './components/Units'
 import { BookingDetail } from './components/BookingDetail'
 import { DataTools } from './components/DataTools'
+import { UsersAdmin } from './components/UsersAdmin'
+import type { AppUser } from './types'
+import { ROLE_LABELS } from './types'
 
 const VIEW_META: Record<View, { title: string; subtitle: string }> = {
   overview: { title: 'Overview', subtitle: 'HPD Triple Play bookings at a glance' },
   bookings: { title: 'Bookings', subtitle: 'All form submissions' },
   schedule: { title: 'Schedule', subtitle: 'Upcoming installation appointments' },
   units: { title: 'Units', subtitle: 'Registered units' },
+  users: { title: 'Users', subtitle: 'Accounts & roles' },
 }
 
-function Dashboard({ onLogout }: { onLogout: () => void }) {
+function Dashboard({
+  onLogout,
+  currentUser,
+}: {
+  onLogout: () => void
+  currentUser: AppUser | null
+}) {
   const [view, setView] = useState<View>('overview')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -54,6 +64,19 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     void updateStatus(id, status).catch(() => {})
   }
 
+  const role = currentUser?.role
+  const canManageBookings = role === 'manager' || role === 'super_admin'
+  const isSuperAdmin = role === 'super_admin'
+  const avatarText = currentUser?.name
+    ? currentUser.name
+        .trim()
+        .split(/\s+/)
+        .map((s) => s[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : 'HP'
+
   const meta = VIEW_META[view]
 
   return (
@@ -69,6 +92,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         health={health}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        isSuperAdmin={isSuperAdmin}
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
@@ -109,12 +133,22 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               <LogOut size={15} />
               <span className="hidden sm:inline">Sign out</span>
             </button>
-            <span
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-slate-800 to-slate-950 text-sm font-semibold text-white shadow-sm ring-1 ring-white/10"
-              title="admin"
-            >
-              HP
-            </span>
+            <div className="flex items-center gap-2">
+              <div className="hidden text-right leading-tight sm:block">
+                <p className="text-sm font-semibold text-slate-800">
+                  {currentUser?.name ?? '—'}
+                </p>
+                <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">
+                  {role ? ROLE_LABELS[role] : ''}
+                </p>
+              </div>
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-slate-800 to-slate-950 text-sm font-semibold text-white shadow-sm ring-1 ring-white/10"
+                title={currentUser?.email ?? ''}
+              >
+                {avatarText}
+              </span>
+            </div>
           </div>
         </header>
 
@@ -160,7 +194,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
               {view === 'overview' && (
                 <>
                   <Overview bookings={bookings} onSelect={(b) => setSelectedId(b.id)} />
-                  <DataTools bookings={bookings} onRestore={restore} />
+                  {isSuperAdmin && (
+                    <DataTools bookings={bookings} onRestore={restore} />
+                  )}
                 </>
               )}
               {view === 'bookings' && (
@@ -173,7 +209,15 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
                 <Schedule bookings={bookings} onSelect={(b) => setSelectedId(b.id)} />
               )}
               {view === 'units' && (
-                <Units units={units} onAdd={addUnit} onImport={importUnits} />
+                <Units
+                  units={units}
+                  onAdd={addUnit}
+                  onImport={importUnits}
+                  canManage={isSuperAdmin}
+                />
+              )}
+              {view === 'users' && isSuperAdmin && (
+                <UsersAdmin currentUserId={currentUser?.id} />
               )}
             </>
           )}
@@ -186,6 +230,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
         onClose={() => setSelectedId(null)}
         onStatusChange={handleStatus}
         onPostpone={postpone}
+        canManage={canManageBookings}
       />
     </div>
   )
@@ -196,13 +241,13 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
  * login screen; once authenticated the JWT is attached to every API request.
  */
 function App() {
-  const { isAuthenticated, login, logout } = useAuth()
+  const { isAuthenticated, currentUser, login, logout } = useAuth()
 
   if (!isAuthenticated) {
     return <LoginPage onLogin={login} />
   }
 
-  return <Dashboard onLogout={logout} />
+  return <Dashboard onLogout={logout} currentUser={currentUser} />
 }
 
 export default App

@@ -3,18 +3,26 @@ import {
   ClipboardList,
   CalendarDays,
   Building2,
+  Users,
   X,
 } from 'lucide-react'
 import { Logo } from './ui'
 import type { HealthState } from '../hooks/useDashboard'
 
-export type View = 'overview' | 'bookings' | 'schedule' | 'units'
+export type View = 'overview' | 'bookings' | 'schedule' | 'units' | 'users'
 
-const NAV: { id: View; label: string; sub: string; icon: typeof LayoutDashboard }[] = [
+const NAV: {
+  id: View
+  label: string
+  sub: string
+  icon: typeof LayoutDashboard
+  superOnly?: boolean
+}[] = [
   { id: 'overview', label: 'Overview', sub: 'الرئيسية', icon: LayoutDashboard },
   { id: 'bookings', label: 'Bookings', sub: 'الحجوزات', icon: ClipboardList },
   { id: 'schedule', label: 'Schedule', sub: 'جدول التركيب', icon: CalendarDays },
   { id: 'units', label: 'Units', sub: 'الوحدات', icon: Building2 },
+  { id: 'users', label: 'Users', sub: 'المستخدمون', icon: Users, superOnly: true },
 ]
 
 const HEALTH_META: Record<HealthState, { dot: string; ring: string; label: string }> = {
@@ -33,6 +41,7 @@ export function Sidebar({
   health,
   open = false,
   onClose,
+  isSuperAdmin = false,
 }: {
   view: View
   onChange: (v: View) => void
@@ -40,8 +49,11 @@ export function Sidebar({
   /** Whether the off-canvas drawer is open (mobile only). */
   open?: boolean
   onClose?: () => void
+  /** Super Admins additionally see the Users management item. */
+  isSuperAdmin?: boolean
 }) {
   const h = HEALTH_META[health]
+  const items = NAV.filter((item) => !item.superOnly || isSuperAdmin)
   return (
     <>
       {/* Mobile overlay — tap to dismiss */}
@@ -94,7 +106,7 @@ export function Sidebar({
         </div>
 
         <nav className="mt-5 flex-1 space-y-1 px-3">
-          {NAV.map((item) => {
+          {items.map((item) => {
             const active = view === item.id
             const Icon = item.icon
             return (

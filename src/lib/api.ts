@@ -1,4 +1,4 @@
-import type { Booking, BookingStatus, TimeSlot, Unit } from '../types'
+import type { AppUser, Booking, BookingStatus, Role, TimeSlot, Unit } from '../types'
 import { TIME_SLOTS } from '../types'
 import { getToken, clearToken, notifyUnauthorized } from './auth'
 
@@ -218,17 +218,38 @@ export function mapUnit(raw: Record<string, unknown>): Unit {
 export const api = {
   health: () => request<unknown>('/health'),
 
-  /** Verify admin credentials against the backend and return a signed JWT. */
-  login: async (username: string, password: string): Promise<string> => {
-    const res = await request<{ token?: string }>(
+  /** Verify credentials; returns a signed JWT plus the logged-in user. */
+  login: async (
+    email: string,
+    password: string,
+  ): Promise<{ token: string; user: AppUser }> => {
+    const res = await request<{ token?: string; user?: AppUser }>(
       '/login',
-      jsonInit('POST', { username, password }),
+      jsonInit('POST', { email, password }),
     )
-    if (!res?.token) {
-      throw new ApiError('Login failed: no token returned', 500)
+    if (!res?.token || !res.user) {
+      throw new ApiError('Login failed', 500)
     }
-    return res.token
+    return { token: res.token, user: res.user }
   },
+
+  /** The currently authenticated user (drives role-based UI). */
+  getMe: (): Promise<AppUser> => request<AppUser>('/me'),
+
+  /* ---- user management (Super Admin only) ---- */
+  listUsers: (): Promise<AppUser[]> => request<AppUser[]>('/users'),
+
+  createUser: (payload: {
+    name: string
+    email: string
+    password: string
+    role: Role
+  }): Promise<AppUser> => request('/users', jsonInit('POST', payload)),
+
+  updateUser: (
+    id: string,
+    payload: { name?: string; role?: Role; isActive?: boolean; password?: string },
+  ): Promise<AppUser> => request(`/users/${id}`, jsonInit('PATCH', payload)),
 
   getUnits: async (): Promise<Unit[]> =>
     asArray(await request<unknown>('/units')).map(mapUnit),

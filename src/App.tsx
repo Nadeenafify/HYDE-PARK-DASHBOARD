@@ -19,6 +19,7 @@ import { Units } from './components/Units'
 import { BookingDetail } from './components/BookingDetail'
 import { DataTools } from './components/DataTools'
 import { UsersAdmin } from './components/UsersAdmin'
+import { useToast } from './components/Toast'
 import type { AppUser } from './types'
 import { ROLE_LABELS } from './types'
 
@@ -60,8 +61,22 @@ function Dashboard({
     [bookings, selectedId],
   )
 
+  const toast = useToast()
+
   function handleStatus(id: string, status: Parameters<typeof updateStatus>[1]) {
-    void updateStatus(id, status).catch(() => {})
+    updateStatus(id, status)
+      .then(() => toast.success('Booking status updated'))
+      .catch(() => toast.error('Could not update status'))
+  }
+
+  async function handlePostpone(id: string, date: string, time: string) {
+    try {
+      await postpone(id, date, time)
+      toast.success('Booking postponed')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not postpone booking')
+      throw e
+    }
   }
 
   const role = currentUser?.role
@@ -229,7 +244,7 @@ function Dashboard({
         booking={selected}
         onClose={() => setSelectedId(null)}
         onStatusChange={handleStatus}
-        onPostpone={postpone}
+        onPostpone={handlePostpone}
         canManage={canManageBookings}
       />
     </div>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Building2, Plus, CheckCircle2, Search, Upload } from 'lucide-react'
 import type { Unit } from '../types'
 import { SectionCard, Pagination } from './ui'
+import { useToast } from './Toast'
 import { usePagination } from '../hooks/usePagination'
 
 type BookedFilter = 'all' | 'available' | 'booked'
@@ -94,40 +95,31 @@ export function Units({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const toast = useToast()
+
   // Excel import
   const fileRef = useRef<HTMLInputElement>(null)
   const [importing, setImporting] = useState(false)
-  const [importMsg, setImportMsg] = useState<{ ok: boolean; text: string } | null>(
-    null,
-  )
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = '' // allow re-selecting the same file later
     if (!file) return
     setImporting(true)
-    setImportMsg(null)
     try {
       const rows = await parseUnitsFile(file)
       if (rows.length === 0) {
-        setImportMsg({
-          ok: false,
-          text: 'No unit codes found in the file.',
-        })
+        toast.error('No unit codes found in the file.')
         return
       }
       const result = await onImport(rows)
-      setImportMsg({
-        ok: true,
-        text: `Imported ${result.created} unit${
-          result.created === 1 ? '' : 's'
-        }${result.skipped ? `, skipped ${result.skipped} (duplicate/empty)` : ''}.`,
-      })
+      toast.success(
+        `Imported ${result.created} unit${result.created === 1 ? '' : 's'}${
+          result.skipped ? `, skipped ${result.skipped} (duplicate/empty)` : ''
+        }.`,
+      )
     } catch (err) {
-      setImportMsg({
-        ok: false,
-        text: err instanceof Error ? err.message : 'Import failed.',
-      })
+      toast.error(err instanceof Error ? err.message : 'Import failed.')
     } finally {
       setImporting(false)
     }
@@ -173,8 +165,11 @@ export function Units({
       setUnitNumber('')
       setType('')
       setOwner('')
+      toast.success('Unit added')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not add unit.')
+      const msg = err instanceof Error ? err.message : 'Could not add unit.'
+      setError(msg)
+      toast.error(msg)
     } finally {
       setSaving(false)
     }
@@ -337,15 +332,6 @@ export function Units({
           >
             <Upload size={16} /> {importing ? 'Importing…' : 'Import from Excel'}
           </button>
-          {importMsg && (
-            <p
-              className={`mt-2 text-xs font-medium ${
-                importMsg.ok ? 'text-emerald-600' : 'text-rose-600'
-              }`}
-            >
-              {importMsg.text}
-            </p>
-          )}
           <p className="mt-2 text-[11px] text-slate-400">
             .xlsx / .csv — a column of unit codes (optional “type” column).
             Duplicates are skipped.

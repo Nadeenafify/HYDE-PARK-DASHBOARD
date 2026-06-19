@@ -1,15 +1,10 @@
 import { useRef, useState } from 'react'
-import {
-  FileSpreadsheet,
-  Database,
-  Upload,
-  CheckCircle2,
-  XCircle,
-} from 'lucide-react'
+import { FileSpreadsheet, Database, Upload } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { Booking } from '../types'
 import { SectionCard } from './ui'
 import { api } from '../lib/api'
+import { useToast } from './Toast'
 import { exportBookingsToExcel, downloadJson } from '../lib/exporters'
 
 type Busy = null | 'export' | 'backup' | 'restore'
@@ -67,18 +62,17 @@ export function DataTools({
     bookings: { created: number; skipped: number }
   }>
 }) {
+  const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState<Busy>(null)
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   async function handleExport() {
     setBusy('export')
-    setMsg(null)
     try {
       await exportBookingsToExcel(bookings)
-      setMsg({ ok: true, text: `Exported ${bookings.length} bookings to Excel.` })
+      toast.success(`Exported ${bookings.length} bookings to Excel.`)
     } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : 'Export failed.' })
+      toast.error(e instanceof Error ? e.message : 'Export failed.')
     } finally {
       setBusy(null)
     }
@@ -86,14 +80,13 @@ export function DataTools({
 
   async function handleBackup() {
     setBusy('backup')
-    setMsg(null)
     try {
       const data = await api.getBackup()
       const today = new Date().toISOString().slice(0, 10)
       downloadJson(`hpd-backup-${today}.json`, data)
-      setMsg({ ok: true, text: 'Backup downloaded.' })
+      toast.success('Backup downloaded.')
     } catch (e) {
-      setMsg({ ok: false, text: e instanceof Error ? e.message : 'Backup failed.' })
+      toast.error(e instanceof Error ? e.message : 'Backup failed.')
     } finally {
       setBusy(null)
     }
@@ -104,22 +97,18 @@ export function DataTools({
     e.target.value = ''
     if (!file) return
     setBusy('restore')
-    setMsg(null)
     try {
       const data = JSON.parse(await file.text())
       const result = await onRestore(data)
-      setMsg({
-        ok: true,
-        text: `Restored ${result.units.created} units and ${result.bookings.created} bookings (existing kept).`,
-      })
+      toast.success(
+        `Restored ${result.units.created} units and ${result.bookings.created} bookings (existing kept).`,
+      )
     } catch (e) {
-      setMsg({
-        ok: false,
-        text:
-          e instanceof Error
-            ? e.message
-            : 'Restore failed — is the file a valid backup?',
-      })
+      toast.error(
+        e instanceof Error
+          ? e.message
+          : 'Restore failed — is the file a valid backup?',
+      )
     } finally {
       setBusy(null)
     }
@@ -171,19 +160,6 @@ export function DataTools({
           className="hidden"
           onChange={handleRestoreFile}
         />
-
-        {msg && (
-          <div
-            className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium ring-1 ${
-              msg.ok
-                ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
-                : 'bg-rose-50 text-rose-700 ring-rose-100'
-            }`}
-          >
-            {msg.ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
-            {msg.text}
-          </div>
-        )}
 
         <p className="text-[11px] leading-relaxed text-slate-400">
           <b className="font-semibold text-slate-500">Export</b> a spreadsheet of

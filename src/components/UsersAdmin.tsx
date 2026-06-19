@@ -1,22 +1,52 @@
 import { useEffect, useState } from 'react'
-import { UserPlus, Users as UsersIcon } from 'lucide-react'
+import { UserPlus, Pencil, X } from 'lucide-react'
 import type { AppUser, Role } from '../types'
 import { ROLES, ROLE_LABELS } from '../types'
 import { SectionCard } from './ui'
 import { api } from '../lib/api'
+import { useToast } from './Toast'
 
-function Input({
+const ROLE_TONE: Record<Role, { badge: string; avatar: string }> = {
+  super_admin: {
+    badge: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
+    avatar: 'from-indigo-500 to-indigo-700',
+  },
+  manager: {
+    badge: 'bg-sky-50 text-sky-700 ring-sky-200',
+    avatar: 'from-sky-500 to-sky-700',
+  },
+  viewer: {
+    badge: 'bg-slate-100 text-slate-600 ring-slate-200',
+    avatar: 'from-slate-400 to-slate-600',
+  },
+}
+
+function initials(name: string): string {
+  return (
+    name
+      .trim()
+      .split(/\s+/)
+      .map((s) => s[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || '?'
+  )
+}
+
+function Field({
   label,
   value,
   onChange,
   type = 'text',
   placeholder,
+  disabled,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   type?: string
   placeholder?: string
+  disabled?: boolean
 }) {
   return (
     <div>
@@ -26,32 +56,70 @@ function Input({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15"
+        disabled={disabled}
+        className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15 disabled:opacity-60"
       />
     </div>
   )
 }
 
+function RoleSelect({
+  value,
+  onChange,
+  disabled,
+  className = '',
+}: {
+  value: Role
+  onChange: (r: Role) => void
+  disabled?: boolean
+  className?: string
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as Role)}
+      disabled={disabled}
+      className={`rounded-xl border border-slate-200 bg-white text-sm text-slate-700 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15 disabled:opacity-60 ${className}`}
+    >
+      {ROLES.map((r) => (
+        <option key={r} value={r}>
+          {ROLE_LABELS[r]}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
+  const toast = useToast()
   const [users, setUsers] = useState<AppUser[]>([])
   const [loading, setLoading] = useState(true)
   const [listError, setListError] = useState<string | null>(null)
 
+  // add form
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<Role>('viewer')
   const [saving, setSaving] = useState(false)
-  const [formError, setFormError] = useState<string | null>(null)
+
+  // edit modal
+  const [editing, setEditing] = useState<AppUser | null>(null)
+  const [eName, setEName] = useState('')
+  const [eRole, setERole] = useState<Role>('viewer')
+  const [eActive, setEActive] = useState(true)
+  const [ePassword, setEPassword] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
 
   useEffect(() => {
     let active = true
     api
       .listUsers()
       .then((u) => active && setUsers(u))
-      .catch((e) =>
-        active &&
-        setListError(e instanceof Error ? e.message : 'Failed to load users.'),
+      .catch(
+        (e) =>
+          active &&
+          setListError(e instanceof Error ? e.message : 'Failed to load users.'),
       )
       .finally(() => active && setLoading(false))
     return () => {
@@ -62,7 +130,6 @@ export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
   async function addUser(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    setFormError(null)
     try {
       const u = await api.createUser({
         name: name.trim(),
@@ -75,20 +142,46 @@ export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
       setEmail('')
       setPassword('')
       setRole('viewer')
+      toast.success(`${u.name} added as ${ROLE_LABELS[u.role]}`)
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Could not add user.')
+      toast.error(err instanceof Error ? err.message : 'Could not add user.')
     } finally {
       setSaving(false)
     }
   }
 
-  async function patch(id: string, change: Partial<Pick<AppUser, 'role' | 'isActive'>>) {
-    const snapshot = users
-    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...change } : u)))
+  function openEdit(u: AppUser) {
+    setEditing(u)
+    setEName(u.name)
+    setERole(u.role)
+    setEActive(u.isActive)
+    setEPassword('')
+  }
+
+  async function saveEdit() {
+    if (!editing) return
+    setSavingEdit(true)
     try {
-      await api.updateUser(id, change)
-    } catch {
-      setUsers(snapshot)
+      const payload: {
+        name?: string
+        role?: Role
+        isActive?: boolean
+        password?: string
+      } = { name: eName.trim() }
+      const self = editing.id === currentUserId
+      if (!self) {
+        payload.role = eRole
+        payload.isActive = eActive
+      }
+      if (ePassword) payload.password = ePassword
+      const updated = await api.updateUser(editing.id, payload)
+      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)))
+      setEditing(null)
+      toast.success(`${updated.name} updated`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save changes.')
+    } finally {
+      setSavingEdit(false)
     }
   }
 
@@ -103,10 +196,16 @@ export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
           <ul className="divide-y divide-slate-50">
             {users.map((u) => {
               const self = u.id === currentUserId
+              const tone = ROLE_TONE[u.role]
               return (
-                <li key={u.id} className="flex items-center gap-3 px-5 py-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
-                    <UsersIcon size={16} />
+                <li
+                  key={u.id}
+                  className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-slate-50/70"
+                >
+                  <span
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br text-xs font-semibold text-white shadow-sm ${tone.avatar}`}
+                  >
+                    {initials(u.name)}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-slate-800">
@@ -115,29 +214,27 @@ export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
                     </p>
                     <p className="truncate text-xs text-slate-400">{u.email}</p>
                   </div>
-                  <select
-                    value={u.role}
-                    onChange={(e) => patch(u.id, { role: e.target.value as Role })}
-                    disabled={self}
-                    className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 outline-none focus:border-brand-500 disabled:opacity-60"
+                  <span
+                    className={`hidden shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset sm:inline-block ${tone.badge}`}
                   >
-                    {ROLES.map((r) => (
-                      <option key={r} value={r}>
-                        {ROLE_LABELS[r]}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => patch(u.id, { isActive: !u.isActive })}
-                    disabled={self}
-                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset transition disabled:opacity-60 ${
+                    {ROLE_LABELS[u.role]}
+                  </span>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${
                       u.isActive
                         ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
                         : 'bg-slate-100 text-slate-500 ring-slate-200'
                     }`}
                   >
                     {u.isActive ? 'Active' : 'Disabled'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => openEdit(u)}
+                    className="shrink-0 rounded-lg border border-slate-200 p-1.5 text-slate-500 transition hover:border-slate-300 hover:bg-white hover:text-slate-700"
+                    aria-label={`Edit ${u.name}`}
+                  >
+                    <Pencil size={14} />
                   </button>
                 </li>
               )
@@ -148,15 +245,15 @@ export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
 
       <SectionCard title="Add user">
         <form onSubmit={addUser} className="space-y-3 px-5 py-5">
-          <Input label="Name" value={name} onChange={setName} placeholder="Full name" />
-          <Input
+          <Field label="Name" value={name} onChange={setName} placeholder="Full name" />
+          <Field
             label="Email"
             type="email"
             value={email}
             onChange={setEmail}
             placeholder="name@example.com"
           />
-          <Input
+          <Field
             label="Password"
             type="password"
             value={password}
@@ -165,19 +262,12 @@ export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
           />
           <div>
             <label className="text-xs font-medium text-slate-500">Role</label>
-            <select
+            <RoleSelect
               value={role}
-              onChange={(e) => setRole(e.target.value as Role)}
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:bg-white"
-            >
-              {ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {ROLE_LABELS[r]}
-                </option>
-              ))}
-            </select>
+              onChange={setRole}
+              className="mt-1 w-full px-3 py-2"
+            />
           </div>
-          {formError && <p className="text-xs text-rose-600">{formError}</p>}
           <button
             type="submit"
             disabled={saving || !name.trim() || !email.trim() || password.length < 6}
@@ -187,6 +277,91 @@ export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
           </button>
         </form>
       </SectionCard>
+
+      {/* Edit modal */}
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="animate-fade absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            onClick={() => setEditing(null)}
+            aria-hidden="true"
+          />
+          <div className="animate-rise relative z-10 w-full max-w-sm rounded-2xl bg-white p-5 shadow-pop">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900">Edit user</h3>
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <Field label="Name" value={eName} onChange={setEName} />
+              <div>
+                <label className="text-xs font-medium text-slate-500">Email</label>
+                <input
+                  value={editing.email}
+                  disabled
+                  className="mt-1 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-400"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500">Role</label>
+                <RoleSelect
+                  value={eRole}
+                  onChange={setERole}
+                  disabled={editing.id === currentUserId}
+                  className="mt-1 w-full px-3 py-2"
+                />
+              </div>
+              <Field
+                label="New password (optional)"
+                type="password"
+                value={ePassword}
+                onChange={setEPassword}
+                placeholder="Leave blank to keep current"
+              />
+              <label
+                className={`flex items-center gap-2.5 ${
+                  editing.id === currentUserId ? 'opacity-50' : 'cursor-pointer'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={eActive}
+                  disabled={editing.id === currentUserId}
+                  onChange={(e) => setEActive(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500/30"
+                />
+                <span className="text-sm font-medium text-slate-700">
+                  Active (can sign in)
+                </span>
+              </label>
+            </div>
+
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={savingEdit || !eName.trim() || (!!ePassword && ePassword.length < 6)}
+                className="flex-1 rounded-xl bg-linear-to-r from-brand-600 to-brand-700 px-3 py-2.5 text-sm font-semibold text-white transition hover:from-brand-500 hover:to-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {savingEdit ? 'Saving…' : 'Save changes'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

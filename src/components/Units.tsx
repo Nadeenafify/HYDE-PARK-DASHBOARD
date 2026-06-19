@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Building2, Plus, CheckCircle2, Search, Upload } from 'lucide-react'
+import { Building2, Plus, CheckCircle2, Search, Upload, Tag, User } from 'lucide-react'
+import type { ReactNode } from 'react'
 import type { Unit } from '../types'
 import { SectionCard, Pagination } from './ui'
 import { useToast } from './Toast'
@@ -277,37 +278,30 @@ export function Units({
 
       {canManage && (
       <SectionCard title="Add unit">
-        <form onSubmit={submit} className="space-y-3 px-5 py-5">
-          <div>
-            <label className="text-xs font-medium text-slate-500">
-              Unit number *
-            </label>
-            <input
-              value={unitNumber}
-              onChange={(e) => setUnitNumber(e.target.value)}
-              placeholder="PK1-A-0312"
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-slate-500">Type</label>
-            <input
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              placeholder="Apartment / Villa"
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-slate-500">Owner</label>
-            <input
-              value={owner}
-              onChange={(e) => setOwner(e.target.value)}
-              placeholder="Owner name"
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15"
-            />
-          </div>
-          {error && <p className="text-xs text-rose-600">{error}</p>}
+        <form onSubmit={submit} className="space-y-4 px-5 py-5">
+          <IconInput
+            label="Unit number"
+            required
+            icon={<Building2 size={15} />}
+            value={unitNumber}
+            onChange={setUnitNumber}
+            placeholder="PK1-A-0312"
+          />
+          <IconInput
+            label="Type"
+            icon={<Tag size={15} />}
+            value={type}
+            onChange={setType}
+            placeholder="Apartment / Villa"
+          />
+          <IconInput
+            label="Owner"
+            icon={<User size={15} />}
+            value={owner}
+            onChange={setOwner}
+            placeholder="Owner name"
+          />
+          {error && <p className="text-xs font-medium text-rose-600">{error}</p>}
           <button
             type="submit"
             disabled={saving || !unitNumber.trim()}
@@ -317,10 +311,15 @@ export function Units({
           </button>
         </form>
 
-        <div className="border-t border-slate-100 px-5 py-4">
-          <p className="mb-2 text-xs font-medium text-slate-500">
-            Or import many at once
-          </p>
+        <div className="flex items-center gap-3 px-5">
+          <span className="h-px flex-1 bg-slate-100" />
+          <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+            or
+          </span>
+          <span className="h-px flex-1 bg-slate-100" />
+        </div>
+
+        <div className="px-5 pb-5 pt-4">
           <input
             ref={fileRef}
             type="file"
@@ -332,17 +331,56 @@ export function Units({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={importing}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="group flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/40 px-4 py-6 text-center transition hover:border-brand-300 hover:bg-brand-50/40 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <Upload size={16} /> {importing ? 'Importing…' : 'Import from Excel'}
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-brand-600 shadow-sm ring-1 ring-slate-100 transition group-hover:ring-brand-200">
+              <Upload size={18} />
+            </span>
+            <span className="text-sm font-semibold text-slate-700">
+              {importing ? 'Importing…' : 'Import from Excel'}
+            </span>
+            <span className="text-[11px] text-slate-400">
+              .xlsx / .csv · duplicates skipped
+            </span>
           </button>
-          <p className="mt-2 text-[11px] text-slate-400">
-            .xlsx / .csv — a column of unit codes (optional “type” column).
-            Duplicates are skipped.
-          </p>
         </div>
       </SectionCard>
       )}
+    </div>
+  )
+}
+
+function IconInput({
+  label,
+  required,
+  icon,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string
+  required?: boolean
+  icon: ReactNode
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-slate-500">
+        {label} {required && <span className="text-brand-500">*</span>}
+      </label>
+      <div className="group relative">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-brand-600">
+          {icon}
+        </span>
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2.5 pl-9 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-300 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15"
+        />
+      </div>
     </div>
   )
 }

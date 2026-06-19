@@ -17,6 +17,7 @@ import { BookingsTable } from './components/BookingsTable'
 import { Schedule } from './components/Schedule'
 import { Units } from './components/Units'
 import { BookingDetail } from './components/BookingDetail'
+import { DataTools } from './components/DataTools'
 
 const VIEW_META: Record<View, { title: string; subtitle: string }> = {
   overview: { title: 'Overview', subtitle: 'HPD Triple Play bookings at a glance' },
@@ -40,6 +41,7 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
     postpone,
     addUnit,
     importUnits,
+    restore,
     loadDemo,
   } = useDashboard()
 
@@ -156,7 +158,10 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           ) : (
             <>
               {view === 'overview' && (
-                <Overview bookings={bookings} onSelect={(b) => setSelectedId(b.id)} />
+                <>
+                  <Overview bookings={bookings} onSelect={(b) => setSelectedId(b.id)} />
+                  <DataTools bookings={bookings} onRestore={restore} />
+                </>
               )}
               {view === 'bookings' && (
                 <BookingsTable

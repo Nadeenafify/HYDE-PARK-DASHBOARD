@@ -253,6 +253,17 @@ export const api = {
   ): Promise<{ created: number; skipped: number; total: number }> =>
     request('/units/bulk', jsonInit('POST', { units })),
 
+  /** Full data snapshot for download (admin). */
+  getBackup: (): Promise<unknown> => request('/backup'),
+
+  /** Re-add missing records from a backup file (admin). */
+  restore: (
+    data: unknown,
+  ): Promise<{
+    units: { created: number; skipped: number }
+    bookings: { created: number; skipped: number }
+  }> => request('/backup/restore', jsonInit('POST', data)),
+
   getBookings: async (status?: BookingStatus): Promise<Booking[]> => {
     const qs = status ? `?status=${encodeURIComponent(status)}` : ''
     return asArray(await request<unknown>(`/bookings${qs}`)).map(mapBooking)

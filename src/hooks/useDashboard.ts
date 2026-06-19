@@ -22,6 +22,12 @@ export interface DashboardState {
   importUnits: (
     units: { code: string; description?: string }[],
   ) => Promise<{ created: number; skipped: number; total: number }>
+  restore: (
+    data: unknown,
+  ) => Promise<{
+    units: { created: number; skipped: number }
+    bookings: { created: number; skipped: number }
+  }>
   /** Populate with bundled demo data when the backend is unavailable. */
   loadDemo: (bookings: Booking[]) => void
 }
@@ -127,6 +133,15 @@ export function useDashboard(): DashboardState {
     [reload],
   )
 
+  const restore = useCallback(
+    async (data: unknown) => {
+      const result = await api.restore(data)
+      await reload()
+      return result
+    },
+    [reload],
+  )
+
   const loadDemo = useCallback((demo: Booking[]) => {
     setBookings(demo)
     setError(null)
@@ -145,6 +160,7 @@ export function useDashboard(): DashboardState {
     deleteBooking,
     addUnit,
     importUnits,
+    restore,
     loadDemo,
   }
 }

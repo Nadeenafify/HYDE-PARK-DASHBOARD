@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   CalendarDays,
+  CalendarOff,
   Building2,
   Users,
   History,
@@ -15,6 +16,7 @@ export type View =
   | 'bookings'
   | 'schedule'
   | 'units'
+  | 'holidays'
   | 'users'
   | 'logs'
 
@@ -29,6 +31,7 @@ const NAV: {
   { id: 'bookings', label: 'Bookings', sub: 'الحجوزات', icon: ClipboardList },
   { id: 'schedule', label: 'Schedule', sub: 'جدول التركيب', icon: CalendarDays },
   { id: 'units', label: 'Units', sub: 'الوحدات', icon: Building2 },
+  { id: 'holidays', label: 'Holidays', sub: 'الإجازات', icon: CalendarOff },
   { id: 'users', label: 'Users', sub: 'المستخدمون', icon: Users, superOnly: true },
   { id: 'logs', label: 'Logs', sub: 'السجل', icon: History, superOnly: true },
 ]

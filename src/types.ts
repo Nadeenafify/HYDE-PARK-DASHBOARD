@@ -39,6 +39,14 @@ export interface AppUser {
   isActive: boolean
 }
 
+/** A day on which installations are not available (admin-declared holiday). */
+export interface ClosedDay {
+  id: string
+  /** ISO date (YYYY-MM-DD). */
+  date: string
+  reason: string | null
+}
+
 /** An activity-log entry (who did what, when). */
 export interface ActivityLog {
   id: string
@@ -83,6 +91,8 @@ export interface Booking {
   timeSlot: TimeSlot
   termsAccepted: boolean
   status: BookingStatus
+  /** True if this customer's mobile is barred from booking online (admin-set). */
+  blocked?: boolean
   /** ISO datetime the form was submitted. */
   submittedAt: string
   /** How many times the booking has been postponed (0/undefined if never). */

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Search, FileImage, FileX2, ChevronDown } from 'lucide-react'
+import { Search, FileImage, FileX2, ChevronDown, Ban } from 'lucide-react'
 import type { Booking, BookingStatus } from '../types'
 import { STATUSES } from '../types'
 import {
@@ -126,8 +126,9 @@ export function BookingsTable({
                   <div className="flex items-center gap-3">
                     <Avatar firstName={b.firstName} lastName={b.lastName} />
                     <div>
-                      <p className="font-medium text-slate-800">
+                      <p className="flex items-center gap-1.5 font-medium text-slate-800">
                         {fullName(b.firstName, b.lastName)}
+                        {b.blocked && <BlockedChip />}
                       </p>
                       <p className="text-xs text-slate-400">{b.unitNumber}</p>
                     </div>
@@ -167,8 +168,9 @@ export function BookingsTable({
               <div className="flex items-center gap-3">
                 <Avatar firstName={b.firstName} lastName={b.lastName} />
                 <div>
-                  <p className="font-medium text-slate-800">
+                  <p className="flex items-center gap-1.5 font-medium text-slate-800">
                     {fullName(b.firstName, b.lastName)}
+                    {b.blocked && <BlockedChip />}
                   </p>
                   <p className="text-xs text-slate-400">{b.unitNumber}</p>
                 </div>
@@ -211,6 +213,18 @@ export function BookingsTable({
         noun="bookings"
       />
     </div>
+  )
+}
+
+/** Small "Blocked" pill shown next to a barred customer's name. */
+function BlockedChip() {
+  return (
+    <span
+      title="Blocked from online booking"
+      className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-600 ring-1 ring-inset ring-rose-200"
+    >
+      <Ban size={10} /> Blocked
+    </span>
   )
 }
 

@@ -3,6 +3,7 @@ import type {
   AppUser,
   Booking,
   BookingStatus,
+  ClosedDay,
   Role,
   TimeSlot,
   Unit,
@@ -188,6 +189,7 @@ export function mapBooking(raw: Record<string, unknown>): Booking {
       ) ?? false,
     ),
     status: normalizeStatus(pick(raw, 'status', 'state')),
+    blocked: Boolean(pick(raw, 'blocked', 'isBlocked') ?? false),
     submittedAt: str(
       pick(raw, 'submittedAt', 'submitted_at', 'createdAt', 'created_at') ??
         new Date().toISOString(),
@@ -322,6 +324,15 @@ export const api = {
     await request(`/bookings/${id}/status`, jsonInit('PATCH', { status }))
   },
 
+  /** Block or unblock the customer (by mobile) from self-service online booking. */
+  setBlocked: async (id: string, blocked: boolean): Promise<Booking> =>
+    mapBooking(
+      await request<Record<string, unknown>>(
+        `/bookings/${id}/blocked`,
+        jsonInit('PATCH', { blocked }),
+      ),
+    ),
+
   /** Reschedule a booking to a new date/time; returns the updated booking. */
   postpone: async (
     id: string,
@@ -337,5 +348,29 @@ export const api = {
 
   deleteBooking: async (id: string): Promise<void> => {
     await request(`/bookings/${id}`, { method: 'DELETE' })
+  },
+
+  /* ---- closed days / holidays ---- */
+  getClosedDays: async (): Promise<ClosedDay[]> =>
+    asArray(await request<unknown>('/closed-days')).map((d) => ({
+      id: str(pick(d, 'id', '_id')),
+      date: str(pick(d, 'date')).slice(0, 10),
+      reason: (pick(d, 'reason') as string | undefined) ?? null,
+    })),
+
+  addClosedDay: async (date: string, reason?: string): Promise<ClosedDay> => {
+    const d = await request<Record<string, unknown>>(
+      '/closed-days',
+      jsonInit('POST', { date, reason: reason || undefined }),
+    )
+    return {
+      id: str(pick(d, 'id', '_id')),
+      date: str(pick(d, 'date')).slice(0, 10),
+      reason: (pick(d, 'reason') as string | undefined) ?? null,
+    }
+  },
+
+  deleteClosedDay: async (id: string): Promise<void> => {
+    await request(`/closed-days/${id}`, { method: 'DELETE' })
   },
 }

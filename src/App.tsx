@@ -16,6 +16,7 @@ import { Overview } from './components/Overview'
 import { BookingsTable } from './components/BookingsTable'
 import { Schedule } from './components/Schedule'
 import { Units } from './components/Units'
+import { Holidays } from './components/Holidays'
 import { BookingDetail } from './components/BookingDetail'
 import { DataTools } from './components/DataTools'
 import { UsersAdmin } from './components/UsersAdmin'
@@ -29,6 +30,7 @@ const VIEW_META: Record<View, { title: string; subtitle: string }> = {
   bookings: { title: 'Bookings', subtitle: 'All form submissions' },
   schedule: { title: 'Schedule', subtitle: 'Upcoming installation appointments' },
   units: { title: 'Units', subtitle: 'Registered units' },
+  holidays: { title: 'Holidays', subtitle: 'Closed days — installations unavailable' },
   users: { title: 'Users', subtitle: 'Accounts & roles' },
   logs: { title: 'Logs', subtitle: 'Who did what, and when' },
 }
@@ -51,6 +53,7 @@ function Dashboard({
     error,
     reload,
     updateStatus,
+    setBlocked,
     postpone,
     addUnit,
     importUnits,
@@ -69,6 +72,14 @@ function Dashboard({
     updateStatus(id, status)
       .then(() => toast.success('Booking status updated'))
       .catch(() => toast.error('Could not update status'))
+  }
+
+  function handleBlocked(id: string, blocked: boolean) {
+    setBlocked(id, blocked)
+      .then(() =>
+        toast.success(blocked ? 'Customer blocked from booking' : 'Customer unblocked'),
+      )
+      .catch(() => toast.error('Could not update block status'))
   }
 
   async function handlePostpone(id: string, date: string, time: string) {
@@ -233,6 +244,9 @@ function Dashboard({
                   canManage={isSuperAdmin}
                 />
               )}
+              {view === 'holidays' && (
+                <Holidays canManage={canManageBookings} />
+              )}
               {view === 'users' && isSuperAdmin && (
                 <UsersAdmin currentUserId={currentUser?.id} />
               )}
@@ -247,6 +261,7 @@ function Dashboard({
         booking={selected}
         onClose={() => setSelectedId(null)}
         onStatusChange={handleStatus}
+        onBlockedChange={handleBlocked}
         onPostpone={handlePostpone}
         canManage={canManageBookings}
       />

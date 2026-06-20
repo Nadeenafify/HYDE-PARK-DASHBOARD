@@ -8,6 +8,8 @@ import {
   CheckCircle2,
   XCircle,
   History,
+  Ban,
+  ShieldCheck,
 } from 'lucide-react'
 import type { Booking, BookingStatus } from '../types'
 import { STATUSES, TIME_SLOTS } from '../types'
@@ -46,12 +48,14 @@ export function BookingDetail({
   booking,
   onClose,
   onStatusChange,
+  onBlockedChange,
   onPostpone,
   canManage,
 }: {
   booking: Booking | null
   onClose: () => void
   onStatusChange: (id: string, status: BookingStatus) => void
+  onBlockedChange: (id: string, blocked: boolean) => void
   onPostpone: (id: string, date: string, time: string) => Promise<void>
   /** Viewers (read-only) don't get the status / postpone controls. */
   canManage: boolean
@@ -142,6 +146,17 @@ export function BookingDetail({
               <StatusBadge status={booking.status} />
             </span>
           </div>
+
+          {booking.blocked && (
+            <div className="flex items-start gap-2.5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              <Ban size={16} className="mt-0.5 shrink-0" />
+              <p>
+                <span className="font-semibold">Blocked from online booking.</span>{' '}
+                This customer must call customer service to book again. هذا العميل
+                محظور من الحجز عبر الموقع.
+              </p>
+            </div>
+          )}
 
           <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
             <Field icon={<Home size={16} />} label="Unit Number / رقم الوحدة">
@@ -300,6 +315,25 @@ export function BookingDetail({
               })}
             </div>
           </div>
+
+          {/* Block / unblock this customer from self-service online booking */}
+          {booking.blocked ? (
+            <button
+              type="button"
+              onClick={() => onBlockedChange(booking.id, false)}
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+            >
+              <ShieldCheck size={15} /> Unblock customer / إلغاء الحظر
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onBlockedChange(booking.id, true)}
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50"
+            >
+              <Ban size={15} /> Block customer / حظر العميل
+            </button>
+          )}
             </>
           )}
           <p className="text-xs text-slate-400">

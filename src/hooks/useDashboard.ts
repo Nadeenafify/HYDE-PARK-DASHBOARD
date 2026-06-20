@@ -12,6 +12,7 @@ export interface DashboardState {
   error: string | null
   reload: () => Promise<void>
   updateStatus: (id: string, status: BookingStatus) => Promise<void>
+  setBlocked: (id: string, blocked: boolean) => Promise<void>
   postpone: (
     id: string,
     installationDate: string,
@@ -94,6 +95,25 @@ export function useDashboard(): DashboardState {
     [bookings],
   )
 
+  const setBlocked = useCallback(
+    async (id: string, blocked: boolean) => {
+      const target = bookings.find((b) => b.id === id)
+      const mobile = target?.mobile
+      const snapshot = bookings
+      // Block/unblock applies to the whole mobile number — reflect that locally.
+      setBookings((prev) =>
+        prev.map((b) => (b.mobile === mobile ? { ...b, blocked } : b)),
+      )
+      try {
+        await api.setBlocked(id, blocked)
+      } catch (e) {
+        setBookings(snapshot) // revert
+        throw e
+      }
+    },
+    [bookings],
+  )
+
   const postpone = useCallback(
     async (id: string, installationDate: string, installationTime: string) => {
       const updated = await api.postpone(id, installationDate, installationTime)
@@ -156,6 +176,7 @@ export function useDashboard(): DashboardState {
     error,
     reload,
     updateStatus,
+    setBlocked,
     postpone,
     deleteBooking,
     addUnit,

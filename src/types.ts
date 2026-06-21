@@ -58,6 +58,27 @@ export interface ActivityLog {
   createdAt: string
 }
 
+/** One thing the operator should know about a row during a restore. */
+export interface RestoreNote {
+  ref: string
+  reason: string
+}
+
+/** Outcome of restoring one entity (units or bookings). */
+export interface RestoreEntityResult {
+  created: number
+  skipped: number
+  failed: number
+  errors: RestoreNote[]
+  warnings: RestoreNote[]
+}
+
+/** Result of POST /api/backup/restore. */
+export interface RestoreResult {
+  units: RestoreEntityResult
+  bookings: RestoreEntityResult
+}
+
 /** A unit available for / referenced by bookings (GET/POST /api/units). */
 export interface Unit {
   id: string

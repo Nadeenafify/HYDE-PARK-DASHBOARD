@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { FileSpreadsheet, Database, Upload } from 'lucide-react'
 import type { ReactNode } from 'react'
-import type { Booking } from '../types'
+import type { Booking, RestoreResult } from '../types'
 import { SectionCard } from './ui'
 import { api } from '../lib/api'
 import { useToast } from './Toast'
@@ -57,10 +57,7 @@ export function DataTools({
   onRestore,
 }: {
   bookings: Booking[]
-  onRestore: (data: unknown) => Promise<{
-    units: { created: number; skipped: number }
-    bookings: { created: number; skipped: number }
-  }>
+  onRestore: (data: unknown) => Promise<RestoreResult>
 }) {
   const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -100,9 +97,27 @@ export function DataTools({
     try {
       const data = JSON.parse(await file.text())
       const result = await onRestore(data)
+      const { units, bookings } = result
       toast.success(
-        `Restored ${result.units.created} units and ${result.bookings.created} bookings (existing kept).`,
+        `Restored ${units.created} units and ${bookings.created} bookings (existing kept).`,
       )
+      const skipped = units.skipped + bookings.skipped
+      const failed = units.failed + bookings.failed
+      const warnings = bookings.warnings.length
+      if (skipped || failed || warnings) {
+        const parts = [
+          skipped ? `${skipped} already present` : '',
+          failed ? `${failed} could not be added` : '',
+          warnings ? `${warnings} reference a missing unit` : '',
+        ].filter(Boolean)
+        const detail = [...units.errors, ...bookings.errors, ...bookings.warnings]
+          .slice(0, 3)
+          .map((n) => `${n.ref}: ${n.reason}`)
+          .join(' · ')
+        const message = parts.join(', ') + (detail ? ` — ${detail}` : '')
+        if (failed) toast.error(message)
+        else toast.info(message)
+      }
     } catch (e) {
       toast.error(
         e instanceof Error

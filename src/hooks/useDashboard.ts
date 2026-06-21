@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Booking, BookingStatus, Unit } from '../types'
+import type { Booking, BookingStatus, RestoreResult, Unit } from '../types'
 import { api } from '../lib/api'
 
 export type HealthState = 'checking' | 'ok' | 'down'
@@ -23,12 +23,7 @@ export interface DashboardState {
   importUnits: (
     units: { code: string; description?: string }[],
   ) => Promise<{ created: number; skipped: number; total: number }>
-  restore: (
-    data: unknown,
-  ) => Promise<{
-    units: { created: number; skipped: number }
-    bookings: { created: number; skipped: number }
-  }>
+  restore: (data: unknown) => Promise<RestoreResult>
   /** Populate with bundled demo data when the backend is unavailable. */
   loadDemo: (bookings: Booking[]) => void
 }

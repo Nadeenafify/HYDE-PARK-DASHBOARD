@@ -21,29 +21,38 @@ function norm(v: unknown): string {
   return String(v ?? '').trim().toLowerCase()
 }
 
+type ParsedUnits = {
+  rows: { code: string; description?: string }[]
+  /**
+   * Named header columns present in the file that we did not map to
+   * code/description and therefore dropped. Only known when a header row
+   * exists — without headers the columns have no names to report.
+   */
+  ignoredColumns: string[]
+}
+
 /**
  * Parse an .xlsx/.csv into unit rows. Works with or without a header row:
  * if the first row looks like headers we map by column name, otherwise the
  * first column is the code and the second (if any) is the description.
  */
-async function parseUnitsFile(
-  file: File,
-): Promise<{ code: string; description?: string }[]> {
+async function parseUnitsFile(file: File): Promise<ParsedUnits> {
   // Lazy-load SheetJS only when an import actually happens (keeps the main
   // bundle small).
   const XLSX = await import('xlsx')
   const buf = await file.arrayBuffer()
   const wb = XLSX.read(buf, { type: 'array' })
   const sheet = wb.Sheets[wb.SheetNames[0]]
-  if (!sheet) return []
+  if (!sheet) return { rows: [], ignoredColumns: [] }
   const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
     header: 1,
     blankrows: false,
     defval: '',
   })
-  if (!rows.length) return []
+  if (!rows.length) return { rows: [], ignoredColumns: [] }
 
-  const first = (rows[0] as unknown[]).map((c) => norm(c))
+  const rawHeader = rows[0] as unknown[]
+  const first = rawHeader.map((c) => norm(c))
   const hasHeader = first.some(
     (c) => CODE_KEYS.includes(c) || DESC_KEYS.includes(c),
   )
@@ -59,6 +68,18 @@ async function parseUnitsFile(
     dataRows = rows.slice(1)
   }
 
+  // Collect any named header column we didn't use, so the UI can tell the
+  // user exactly what was dropped (e.g. an "Owner" column the schema has no
+  // place for). Skipped entirely when the file has no header row.
+  const ignoredColumns: string[] = []
+  if (hasHeader) {
+    rawHeader.forEach((h, idx) => {
+      if (idx === codeIdx || idx === descIdx) return
+      const name = String(h ?? '').trim()
+      if (name) ignoredColumns.push(name)
+    })
+  }
+
   const out: { code: string; description?: string }[] = []
   for (const r of dataRows) {
     const arr = r as unknown[]
@@ -67,7 +88,7 @@ async function parseUnitsFile(
     const description = descIdx >= 0 ? String(arr[descIdx] ?? '').trim() : ''
     out.push({ code, description: description || undefined })
   }
-  return out
+  return { rows: out, ignoredColumns }
 }
 
 const BOOKED_FILTERS: { key: BookedFilter; label: string }[] = [
@@ -108,10 +129,13 @@ export function Units({
     if (!file) return
     setImporting(true)
     try {
-      const rows = await parseUnitsFile(file)
+      const { rows, ignoredColumns } = await parseUnitsFile(file)
       if (rows.length === 0) {
         toast.error('No unit codes found in the file.')
         return
+      }
+      if (ignoredColumns.length) {
+        toast.info(`Ignored columns: ${ignoredColumns.join(', ')}`)
       }
       const result = await onImport(rows)
       toast.success(

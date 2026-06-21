@@ -4,6 +4,7 @@ import type {
   Booking,
   BookingStatus,
   ClosedDay,
+  RestoreResult,
   Role,
   TimeSlot,
   Unit,
@@ -301,12 +302,8 @@ export const api = {
   getBackup: (): Promise<unknown> => request('/backup'),
 
   /** Re-add missing records from a backup file (admin). */
-  restore: (
-    data: unknown,
-  ): Promise<{
-    units: { created: number; skipped: number }
-    bookings: { created: number; skipped: number }
-  }> => request('/backup/restore', jsonInit('POST', data)),
+  restore: (data: unknown): Promise<RestoreResult> =>
+    request('/backup/restore', jsonInit('POST', data)),
 
   getBookings: async (status?: BookingStatus): Promise<Booking[]> => {
     const qs = status ? `?status=${encodeURIComponent(status)}` : ''

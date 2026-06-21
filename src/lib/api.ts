@@ -3,7 +3,9 @@ import type {
   AppUser,
   Booking,
   BookingStatus,
+  BlockEvent,
   ClosedDay,
+  Postpone,
   RestoreResult,
   Role,
   TimeSlot,
@@ -275,6 +277,37 @@ export const api = {
   listLogs: (action?: string): Promise<ActivityLog[]> =>
     request(`/logs${action ? `?action=${encodeURIComponent(action)}` : ''}`),
 
+  /** Postpone audit feed (manager / super admin). */
+  getPostpones: async (): Promise<Postpone[]> =>
+    asArray(await request<unknown>('/postpones')).map((p) => ({
+      id: str(pick(p, 'id', '_id')),
+      bookingId: str(pick(p, 'bookingId', 'booking_id')),
+      unitCode: str(pick(p, 'unitCode', 'unit_code', 'unit')),
+      fromDate: str(pick(p, 'fromDate', 'from_date')).slice(0, 10),
+      fromTime: str(pick(p, 'fromTime', 'from_time')),
+      toDate: str(pick(p, 'toDate', 'to_date')).slice(0, 10),
+      toTime: str(pick(p, 'toTime', 'to_time')),
+      sequence: Number(pick(p, 'sequence') ?? 0),
+      actorName: (pick(p, 'actorName', 'actor_name') as string | undefined) ?? null,
+      actorEmail:
+        (pick(p, 'actorEmail', 'actor_email') as string | undefined) ?? null,
+      createdAt: str(pick(p, 'createdAt', 'created_at')),
+    })),
+
+  /** Block/unblock audit feed (manager / super admin). */
+  getBlockEvents: async (): Promise<BlockEvent[]> =>
+    asArray(await request<unknown>('/block-events')).map((b) => ({
+      id: str(pick(b, 'id', '_id')),
+      mobile: str(pick(b, 'mobile')),
+      customerName:
+        (pick(b, 'customerName', 'customer_name') as string | undefined) ?? null,
+      blocked: Boolean(pick(b, 'blocked')),
+      actorName: (pick(b, 'actorName', 'actor_name') as string | undefined) ?? null,
+      actorEmail:
+        (pick(b, 'actorEmail', 'actor_email') as string | undefined) ?? null,
+      createdAt: str(pick(b, 'createdAt', 'created_at')),
+    })),
+
   getUnits: async (): Promise<Unit[]> =>
     asArray(await request<unknown>('/units')).map(mapUnit),
 
@@ -329,6 +362,11 @@ export const api = {
         jsonInit('PATCH', { blocked }),
       ),
     ),
+
+  /** Block/unblock a customer directly by mobile number (Blocked admin view). */
+  setBlockedByMobile: async (mobile: string, blocked: boolean): Promise<void> => {
+    await request('/bookings/blocked-by-mobile', jsonInit('PATCH', { mobile, blocked }))
+  },
 
   /** Reschedule a booking to a new date/time; returns the updated booking. */
   postpone: async (

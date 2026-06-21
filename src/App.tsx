@@ -20,6 +20,8 @@ import { Holidays } from './components/Holidays'
 import { BookingDetail } from './components/BookingDetail'
 import { DataTools } from './components/DataTools'
 import { UsersAdmin } from './components/UsersAdmin'
+import { Postpones } from './components/Postpones'
+import { BlockedView } from './components/BlockedView'
 import { LogsView } from './components/LogsView'
 import { useToast } from './components/Toast'
 import type { AppUser } from './types'
@@ -31,6 +33,8 @@ const VIEW_META: Record<View, { title: string; subtitle: string }> = {
   schedule: { title: 'Schedule', subtitle: 'Upcoming installation appointments' },
   units: { title: 'Units', subtitle: 'Registered units' },
   holidays: { title: 'Holidays', subtitle: 'Closed days — installations unavailable' },
+  postpones: { title: 'Postpones', subtitle: 'Every reschedule — who moved what, and when' },
+  blocked: { title: 'Blocked', subtitle: 'Blocked customers — who, by whom, and when' },
   users: { title: 'Users', subtitle: 'Accounts & roles' },
   logs: { title: 'Logs', subtitle: 'Who did what, and when' },
 }
@@ -54,6 +58,7 @@ function Dashboard({
     reload,
     updateStatus,
     setBlocked,
+    unblockByMobile,
     postpone,
     addUnit,
     importUnits,
@@ -246,6 +251,10 @@ function Dashboard({
               )}
               {view === 'holidays' && (
                 <Holidays canManage={canManageBookings} />
+              )}
+              {view === 'postpones' && isSuperAdmin && <Postpones />}
+              {view === 'blocked' && isSuperAdmin && (
+                <BlockedView bookings={bookings} onUnblock={unblockByMobile} />
               )}
               {view === 'users' && isSuperAdmin && (
                 <UsersAdmin currentUserId={currentUser?.id} />

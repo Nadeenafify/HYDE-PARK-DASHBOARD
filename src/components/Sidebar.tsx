@@ -3,7 +3,9 @@ import {
   ClipboardList,
   CalendarDays,
   CalendarOff,
+  CalendarClock,
   Building2,
+  Ban,
   Users,
   History,
   X,
@@ -17,6 +19,8 @@ export type View =
   | 'schedule'
   | 'units'
   | 'holidays'
+  | 'postpones'
+  | 'blocked'
   | 'users'
   | 'logs'
 
@@ -32,6 +36,8 @@ const NAV: {
   { id: 'schedule', label: 'Schedule', sub: 'جدول التركيب', icon: CalendarDays },
   { id: 'units', label: 'Units', sub: 'الوحدات', icon: Building2 },
   { id: 'holidays', label: 'Holidays', sub: 'الإجازات', icon: CalendarOff },
+  { id: 'postpones', label: 'Postpones', sub: 'التأجيلات', icon: CalendarClock, superOnly: true },
+  { id: 'blocked', label: 'Blocked', sub: 'المحظورون', icon: Ban, superOnly: true },
   { id: 'users', label: 'Users', sub: 'المستخدمون', icon: Users, superOnly: true },
   { id: 'logs', label: 'Logs', sub: 'السجل', icon: History, superOnly: true },
 ]

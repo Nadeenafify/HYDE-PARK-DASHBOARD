@@ -107,7 +107,7 @@ export function StatCard({
           {icon}
         </span>
       </div>
-      <p className="mt-4 text-3xl font-bold tracking-tight text-slate-900">
+      <p className="mt-4 truncate text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
         {value}
       </p>
       {hint != null && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
@@ -130,7 +130,7 @@ export function SectionCard({
     <div
       className={`overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-soft ${className}`}
     >
-      <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5">
+      <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-sm font-semibold tracking-tight text-slate-800">
           {title}
         </h2>

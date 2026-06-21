@@ -13,6 +13,8 @@ export interface DashboardState {
   reload: () => Promise<void>
   updateStatus: (id: string, status: BookingStatus) => Promise<void>
   setBlocked: (id: string, blocked: boolean) => Promise<void>
+  /** Unblock a customer by mobile (used by the Blocked view). */
+  unblockByMobile: (mobile: string) => Promise<void>
   postpone: (
     id: string,
     installationDate: string,
@@ -109,6 +111,24 @@ export function useDashboard(): DashboardState {
     [bookings],
   )
 
+  const unblockByMobile = useCallback(
+    async (mobile: string) => {
+      const snapshot = bookings
+      // Optimistically clear the flag on every booking for this mobile so both
+      // the Bookings badge and the Blocked view update without a full reload.
+      setBookings((prev) =>
+        prev.map((b) => (b.mobile === mobile ? { ...b, blocked: false } : b)),
+      )
+      try {
+        await api.setBlockedByMobile(mobile, false)
+      } catch (e) {
+        setBookings(snapshot) // revert
+        throw e
+      }
+    },
+    [bookings],
+  )
+
   const postpone = useCallback(
     async (id: string, installationDate: string, installationTime: string) => {
       const updated = await api.postpone(id, installationDate, installationTime)
@@ -172,6 +192,7 @@ export function useDashboard(): DashboardState {
     reload,
     updateStatus,
     setBlocked,
+    unblockByMobile,
     postpone,
     deleteBooking,
     addUnit,

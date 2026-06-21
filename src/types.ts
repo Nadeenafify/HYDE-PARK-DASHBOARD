@@ -58,6 +58,35 @@ export interface ActivityLog {
   createdAt: string
 }
 
+/** One audit row from the postpones table — a single reschedule. */
+export interface Postpone {
+  id: string
+  bookingId: string
+  unitCode: string
+  /** ISO date (YYYY-MM-DD) the booking was moved from / to. */
+  fromDate: string
+  fromTime: string
+  toDate: string
+  toTime: string
+  /** Which postpone this was for the booking (1 = first move). */
+  sequence: number
+  actorName: string | null
+  actorEmail: string | null
+  createdAt: string
+}
+
+/** One audit row from the block_events table — a block or unblock action. */
+export interface BlockEvent {
+  id: string
+  mobile: string
+  customerName: string | null
+  /** Resulting state: true = blocked, false = unblocked. */
+  blocked: boolean
+  actorName: string | null
+  actorEmail: string | null
+  createdAt: string
+}
+
 /** One thing the operator should know about a row during a restore. */
 export interface RestoreNote {
   ref: string

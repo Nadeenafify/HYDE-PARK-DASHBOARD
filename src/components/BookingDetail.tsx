@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   X,
   Phone,
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import type { Booking, BookingStatus } from '../types'
 import { STATUSES, TIME_SLOTS } from '../types'
+import { api } from '../lib/api'
 import {
   fullName,
   formatDate,
@@ -21,6 +22,7 @@ import {
   STATUS_META,
 } from '../lib/utils'
 import { Avatar, StatusBadge } from './ui'
+import { HolidayCalendar } from './HolidayCalendar'
 
 function Field({
   icon,
@@ -65,12 +67,56 @@ export function BookingDetail({
   const [newTime, setNewTime] = useState('')
   const [postponing, setPostponing] = useState(false)
   const [postponeError, setPostponeError] = useState<string | null>(null)
+  // Admin-declared holidays, "YYYY-MM-DD" -> reason. null = not loaded yet.
+  // Loaded eagerly when the panel opens so a holiday is caught the instant a
+  // date is picked, and confirm stays blocked until it has actually loaded.
+  const [closedDays, setClosedDays] = useState<Map<string, string> | null>(null)
+
+  useEffect(() => {
+    if (!booking) return
+    let active = true
+    api
+      .getClosedDays()
+      .then((days) => {
+        if (active)
+          setClosedDays(new Map(days.map((d) => [d.date, d.reason ?? ''])))
+      })
+      .catch(() => {
+        // Non-fatal: the server still rejects holidays on submit.
+        if (active) setClosedDays(new Map())
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   if (!booking) return null
 
   // The raw id is a long UUID — show a short, readable reference instead.
   const shortId = booking.id.slice(0, 8).toUpperCase()
   const todayISO = new Date().toISOString().slice(0, 10)
+
+  /**
+   * Why `date` (YYYY-MM-DD) can't be a postpone target, or null if it's fine.
+   * Mirrors the backend's assertBookableDate: Fri/Sat and admin-closed days are
+   * official holidays. Uses UTC weekday to match the server exactly.
+   */
+  function holidayReason(date: string): string | null {
+    if (!date) return null
+    const weekday = new Date(`${date}T00:00:00Z`).getUTCDay()
+    if (weekday === 5 || weekday === 6) {
+      return 'الجمعة والسبت إجازة رسمية · Fridays & Saturdays are official holidays.'
+    }
+    const reason = closedDays?.get(date)
+    if (reason !== undefined) {
+      return reason
+        ? `عطلة رسمية (${reason}) · Official holiday.`
+        : 'عطلة رسمية · Official holiday.'
+    }
+    return null
+  }
+
+  const dateIssue = holidayReason(newDate)
 
   function openReschedule() {
     if (!booking) return
@@ -82,6 +128,13 @@ export function BookingDetail({
 
   async function doPostpone() {
     if (!booking) return
+    // Don't submit until the holiday list is loaded, then re-check the date.
+    if (closedDays === null) return
+    const issue = holidayReason(newDate)
+    if (issue) {
+      setPostponeError(issue)
+      return
+    }
     setPostponeError(null)
     setPostponing(true)
     try {
@@ -233,29 +286,41 @@ export function BookingDetail({
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                 Postpone to / تأجيل إلى
               </p>
-              <div className="flex gap-2">
-                <input
-                  type="date"
-                  min={todayISO}
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-                />
-                <select
-                  value={newTime}
-                  onChange={(e) => setNewTime(e.target.value)}
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
-                >
-                  <option value="" disabled>
-                    Time
+              <HolidayCalendar
+                value={newDate}
+                onChange={(iso) => {
+                  setNewDate(iso)
+                  setPostponeError(null)
+                }}
+                minISO={todayISO}
+                closedDays={closedDays}
+              />
+              <select
+                value={newTime}
+                onChange={(e) => setNewTime(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+              >
+                <option value="" disabled>
+                  Time / الوقت
+                </option>
+                {TIME_SLOTS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
                   </option>
-                  {TIME_SLOTS.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                ))}
+              </select>
+              {dateIssue ? (
+                <p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
+                  <Ban size={13} className="mt-px shrink-0" />
+                  <span>{dateIssue}</span>
+                </p>
+              ) : (
+                closedDays === null && (
+                  <p className="text-xs text-slate-400">
+                    Checking holidays… · جارٍ التحقق من الإجازات
+                  </p>
+                )
+              )}
               {postponeError && (
                 <p className="text-xs font-medium text-rose-600">{postponeError}</p>
               )}
@@ -263,7 +328,13 @@ export function BookingDetail({
                 <button
                   type="button"
                   onClick={doPostpone}
-                  disabled={postponing || !newDate || !newTime}
+                  disabled={
+                    postponing ||
+                    !newDate ||
+                    !newTime ||
+                    !!dateIssue ||
+                    closedDays === null
+                  }
                   className="flex-1 rounded-lg bg-linear-to-r from-slate-900 to-slate-800 px-3 py-2 text-sm font-semibold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {postponing ? 'Saving…' : 'Confirm postpone'}

@@ -13,6 +13,7 @@ import {
   formatDate,
   isToday,
   daysFromToday,
+  todayISO,
   STATUS_META,
 } from '../lib/utils'
 import { StatCard, SectionCard, Avatar, StatusBadge } from './ui'
@@ -97,7 +98,7 @@ export function Overview({
         <StatCard
           label="Installing Today"
           value={stats.today}
-          hint={formatDate('2026-06-17')}
+          hint={formatDate(todayISO())}
           icon={<CalendarCheck size={18} />}
           tone="brand"
         />

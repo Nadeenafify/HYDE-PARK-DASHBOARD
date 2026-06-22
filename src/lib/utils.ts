@@ -1,7 +1,15 @@
 import type { BookingStatus } from '../types'
 
-/** "Today" anchor for the dashboard demo data. */
-export const TODAY = '2026-06-17'
+/** Local YYYY-MM-DD for the real current day — drives all "today"/relative-date
+ * logic (TODAY badges, "Installing Today", Schedule upcoming filter). Computed
+ * live so it never drifts; do NOT hardcode an anchor here. */
+export function todayISO(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
 export function fullName(firstName: string, lastName: string): string {
   return `${firstName} ${lastName}`.trim()
@@ -48,12 +56,12 @@ export function formatMobile(mobile: string): string {
 
 export function daysFromToday(iso: string): number {
   const a = new Date(`${iso}T00:00:00`).getTime()
-  const b = new Date(`${TODAY}T00:00:00`).getTime()
+  const b = new Date(`${todayISO()}T00:00:00`).getTime()
   return Math.round((a - b) / 86_400_000)
 }
 
 export function isToday(iso: string): boolean {
-  return iso === TODAY
+  return iso === todayISO()
 }
 
 export const STATUS_META: Record<

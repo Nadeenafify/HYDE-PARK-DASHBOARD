@@ -33,6 +33,20 @@ import { getToken, clearToken, notifyUnauthorized } from './auth'
  */
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
 
+/**
+ * Resolve a receipt path to a URL that works regardless of where the dashboard
+ * is hosted. The backend serves uploads at <api-origin>/uploads/… (NOT under
+ * /api). When VITE_API_URL is an absolute URL we strip its trailing /api to get
+ * the origin so receipts open cross-origin; when it's the relative "/api"
+ * (dev proxy / same-origin) the path stays relative and resolves correctly.
+ */
+function resolveReceiptUrl(path: string | null): string | null {
+  if (!path) return null
+  if (/^https?:\/\//i.test(path)) return path
+  const origin = BASE.replace(/\/api\/?$/, '')
+  return `${origin}${path.startsWith('/') ? '' : '/'}${path}`
+}
+
 export class ApiError extends Error {
   status: number
   constructor(message: string, status: number) {
@@ -174,7 +188,7 @@ export function mapBooking(raw: Record<string, unknown>): Booking {
     firstName: first,
     lastName: last,
     mobile: str(pick(raw, 'mobile', 'phone', 'mobileNumber', 'mobile_number')),
-    receiptUrl: receipt ? str(receipt) : null,
+    receiptUrl: resolveReceiptUrl(receipt ? str(receipt) : null),
     installationDate: str(
       pick(raw, 'installationDate', 'installation_date', 'date'),
     ).slice(0, 10),

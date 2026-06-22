@@ -126,6 +126,7 @@ function Dashboard({
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         isSuperAdmin={isSuperAdmin}
+        canManage={canManageBookings}
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
@@ -252,8 +253,8 @@ function Dashboard({
               {view === 'holidays' && (
                 <Holidays canManage={canManageBookings} />
               )}
-              {view === 'postpones' && isSuperAdmin && <Postpones />}
-              {view === 'blocked' && isSuperAdmin && (
+              {view === 'postpones' && canManageBookings && <Postpones />}
+              {view === 'blocked' && canManageBookings && (
                 <BlockedView bookings={bookings} onUnblock={unblockByMobile} />
               )}
               {view === 'users' && isSuperAdmin && (

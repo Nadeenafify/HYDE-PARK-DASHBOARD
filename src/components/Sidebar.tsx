@@ -29,15 +29,18 @@ const NAV: {
   label: string
   sub: string
   icon: typeof LayoutDashboard
+  /** Visible only to super admins. */
   superOnly?: boolean
+  /** Visible to managers and super admins (anyone who can manage bookings). */
+  managerUp?: boolean
 }[] = [
   { id: 'overview', label: 'Overview', sub: 'الرئيسية', icon: LayoutDashboard },
   { id: 'bookings', label: 'Bookings', sub: 'الحجوزات', icon: ClipboardList },
   { id: 'schedule', label: 'Schedule', sub: 'جدول التركيب', icon: CalendarDays },
   { id: 'units', label: 'Units', sub: 'الوحدات', icon: Building2 },
   { id: 'holidays', label: 'Holidays', sub: 'الإجازات', icon: CalendarOff },
-  { id: 'postpones', label: 'Postpones', sub: 'التأجيلات', icon: CalendarClock, superOnly: true },
-  { id: 'blocked', label: 'Blocked', sub: 'المحظورون', icon: Ban, superOnly: true },
+  { id: 'postpones', label: 'Postpones', sub: 'التأجيلات', icon: CalendarClock, managerUp: true },
+  { id: 'blocked', label: 'Blocked', sub: 'المحظورون', icon: Ban, managerUp: true },
   { id: 'users', label: 'Users', sub: 'المستخدمون', icon: Users, superOnly: true },
   { id: 'logs', label: 'Logs', sub: 'السجل', icon: History, superOnly: true },
 ]
@@ -59,6 +62,7 @@ export function Sidebar({
   open = false,
   onClose,
   isSuperAdmin = false,
+  canManage = false,
 }: {
   view: View
   onChange: (v: View) => void
@@ -66,11 +70,17 @@ export function Sidebar({
   /** Whether the off-canvas drawer is open (mobile only). */
   open?: boolean
   onClose?: () => void
-  /** Super Admins additionally see the Users management item. */
+  /** Super Admins additionally see Users and Logs. */
   isSuperAdmin?: boolean
+  /** Managers (and super admins) additionally see Postpones and Blocked. */
+  canManage?: boolean
 }) {
   const h = HEALTH_META[health]
-  const items = NAV.filter((item) => !item.superOnly || isSuperAdmin)
+  const items = NAV.filter((item) => {
+    if (item.superOnly) return isSuperAdmin
+    if (item.managerUp) return canManage
+    return true
+  })
   return (
     <>
       {/* Mobile overlay — tap to dismiss */}

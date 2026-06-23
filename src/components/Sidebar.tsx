@@ -98,7 +98,7 @@ export function Sidebar({
       >
         <div className="flex items-center overflow-hidden">
           <img
-            src="/HYDAPARK.png"
+            src={`${import.meta.env.BASE_URL}HYDAPARK.png`}
             alt="Hyde Park Developments"
             className="h-16 min-w-0 flex-1 object-cover object-center sm:h-18 lg:h-20"
           />

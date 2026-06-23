@@ -7,7 +7,7 @@ import { STATUS_META, initials } from '../lib/utils'
 export function Logo({ className = 'h-9 w-9' }: { className?: string }) {
   return (
     <img
-      src="/HYDAPARK.png"
+      src={`${import.meta.env.BASE_URL}HYDAPARK.png`}
       alt="Hyde Park Developments"
       className={`object-contain ${className}`}
     />

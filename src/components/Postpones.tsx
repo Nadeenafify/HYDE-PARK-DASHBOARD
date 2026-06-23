@@ -4,11 +4,10 @@ import {
   CalendarDays,
   Building2,
   ClipboardList,
-  Search,
   ArrowRight,
 } from 'lucide-react'
 import type { Postpone } from '../types'
-import { SectionCard, Pagination, StatCard } from './ui'
+import { SectionCard, Pagination, StatCard, SearchInput } from './ui'
 import { usePagination } from '../hooks/usePagination'
 import { formatDateShort, formatDateTime } from '../lib/utils'
 import { api } from '../lib/api'
@@ -133,18 +132,12 @@ export function Postpones() {
       <SectionCard
         title={`Postpones (${rows.length})`}
         action={
-          <div className="group relative w-full sm:w-56">
-            <Search
-              size={15}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-brand-600"
-            />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search unit or admin…"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-1.5 pl-8 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15"
-            />
-          </div>
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search unit or admin…"
+            className="w-full sm:w-60"
+          />
         }
       >
         {loading ? (

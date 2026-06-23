@@ -16,7 +16,7 @@ import { Overview } from './components/Overview'
 import { BookingsTable } from './components/BookingsTable'
 import { Schedule } from './components/Schedule'
 import { Units } from './components/Units'
-import { Holidays } from './components/Holidays'
+import { WorkingHours } from './components/WorkingHours'
 import { BookingDetail } from './components/BookingDetail'
 import { DataTools } from './components/DataTools'
 import { UsersAdmin } from './components/UsersAdmin'
@@ -28,11 +28,14 @@ import type { AppUser } from './types'
 import { ROLE_LABELS } from './types'
 
 const VIEW_META: Record<View, { title: string; subtitle: string }> = {
-  overview: { title: 'Overview', subtitle: 'HPD Triple Play bookings at a glance' },
+  overview: { title: 'Overview', subtitle: 'HPD Home Connect bookings at a glance' },
   bookings: { title: 'Bookings', subtitle: 'All form submissions' },
   schedule: { title: 'Schedule', subtitle: 'Upcoming installation appointments' },
   units: { title: 'Units', subtitle: 'Registered units' },
-  holidays: { title: 'Holidays', subtitle: 'Closed days — installations unavailable' },
+  'working-hours': {
+    title: 'Working Hours',
+    subtitle: 'Working days & bookable time slots',
+  },
   postpones: { title: 'Postpones', subtitle: 'Every reschedule — who moved what, and when' },
   blocked: { title: 'Blocked', subtitle: 'Blocked customers — who, by whom, and when' },
   users: { title: 'Users', subtitle: 'Accounts & roles' },
@@ -141,7 +144,7 @@ function Dashboard({
               <Menu size={20} />
             </button>
             <div className="min-w-0">
-              <h1 className="truncate text-lg font-bold tracking-tight text-slate-900 sm:text-xl">
+              <h1 className="text-base font-bold leading-tight tracking-tight text-slate-900 sm:truncate sm:text-xl">
                 {meta.title}
               </h1>
               <p className="hidden truncate text-sm text-slate-500 sm:block">
@@ -250,8 +253,8 @@ function Dashboard({
                   canManage={isSuperAdmin}
                 />
               )}
-              {view === 'holidays' && (
-                <Holidays canManage={canManageBookings} />
+              {view === 'working-hours' && (
+                <WorkingHours canManage={canManageBookings} />
               )}
               {view === 'postpones' && canManageBookings && <Postpones />}
               {view === 'blocked' && canManageBookings && (

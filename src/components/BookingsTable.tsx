@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Search, FileImage, FileX2, ChevronDown, Ban } from 'lucide-react'
-import type { Booking, BookingStatus } from '../types'
-import { STATUSES } from '../types'
+import { FileImage, FileX2, ChevronDown, Ban } from 'lucide-react'
+import type { Booking, BookingStatus, UnitType } from '../types'
+import { STATUSES, UNIT_TYPE_LABELS } from '../types'
 import {
   fullName,
   formatDate,
@@ -10,10 +10,27 @@ import {
   isToday,
   STATUS_META,
 } from '../lib/utils'
-import { Avatar, StatusBadge, Pagination } from './ui'
+import {
+  Avatar,
+  StatusBadge,
+  UnitTypeBadge,
+  Pagination,
+  SearchInput,
+  FilterChips,
+  type FilterOption,
+} from './ui'
 import { usePagination } from '../hooks/usePagination'
 
 type StatusFilter = BookingStatus | 'all'
+type TypeFilter = UnitType | 'all'
+const TYPE_FILTERS: TypeFilter[] = ['all', 'residential', 'commercial']
+
+/** Accent dot for a unit-type pill (matches UnitTypeBadge tones). */
+const TYPE_DOT: Record<TypeFilter, string | undefined> = {
+  all: undefined,
+  residential: 'bg-sky-500',
+  commercial: 'bg-violet-500',
+}
 
 export function BookingsTable({
   bookings,
@@ -24,6 +41,7 @@ export function BookingsTable({
 }) {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
 
   const counts = useMemo(() => {
     const c: Record<StatusFilter, number> = {
@@ -37,10 +55,24 @@ export function BookingsTable({
     return c
   }, [bookings])
 
+  const typeCounts = useMemo(() => {
+    const c: Record<TypeFilter, number> = {
+      all: bookings.length,
+      residential: 0,
+      commercial: 0,
+    }
+    for (const b of bookings) {
+      if (b.unitType === 'residential') c.residential++
+      else if (b.unitType === 'commercial') c.commercial++
+    }
+    return c
+  }, [bookings])
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return bookings
       .filter((b) => statusFilter === 'all' || b.status === statusFilter)
+      .filter((b) => typeFilter === 'all' || b.unitType === typeFilter)
       .filter((b) => {
         if (!q) return true
         return (
@@ -51,7 +83,7 @@ export function BookingsTable({
         )
       })
       .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
-  }, [bookings, query, statusFilter])
+  }, [bookings, query, statusFilter, typeFilter])
 
   const { pageItems, page, pageSize, total, totalPages, start, setPage, setPageSize } =
     usePagination(filtered)
@@ -59,47 +91,47 @@ export function BookingsTable({
   // Jump back to the first page whenever the filters change.
   useEffect(() => {
     setPage(1)
-  }, [query, statusFilter, setPage])
+  }, [query, statusFilter, typeFilter, setPage])
+
+  const statusOptions: FilterOption<StatusFilter>[] = (
+    ['all', ...STATUSES] as StatusFilter[]
+  ).map((s) => ({
+    key: s,
+    label: s === 'all' ? 'All' : STATUS_META[s].label,
+    count: counts[s],
+    dot: s === 'all' ? undefined : STATUS_META[s].dot,
+  }))
+
+  const typeOptions: FilterOption<TypeFilter>[] = TYPE_FILTERS.map((t) => ({
+    key: t,
+    label: t === 'all' ? 'All' : UNIT_TYPE_LABELS[t].en,
+    count: typeCounts[t],
+    dot: TYPE_DOT[t],
+  }))
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-soft">
-      <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="group relative w-full sm:max-w-xs">
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-brand-600"
-          />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search unit, name, mobile…"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15"
-          />
-        </div>
+      <div className="flex flex-col gap-3.5 border-b border-slate-100 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          placeholder="Search unit, name, mobile…"
+          className="w-full lg:max-w-xs"
+        />
 
-        <div className="flex flex-wrap gap-1.5">
-          {(['all', ...STATUSES] as StatusFilter[]).map((s) => {
-            const active = statusFilter === s
-            const label = s === 'all' ? 'All' : STATUS_META[s].label
-            return (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setStatusFilter(s)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                  active
-                    ? 'bg-linear-to-r from-slate-900 to-slate-700 text-white shadow-sm'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {label}
-                <span className={active ? 'text-white/60' : 'text-slate-400'}>
-                  {' '}
-                  {counts[s]}
-                </span>
-              </button>
-            )
-          })}
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5">
+          <FilterChips
+            label="Status"
+            options={statusOptions}
+            value={statusFilter}
+            onChange={setStatusFilter}
+          />
+          <FilterChips
+            label="Type"
+            options={typeOptions}
+            value={typeFilter}
+            onChange={setTypeFilter}
+          />
         </div>
       </div>
 
@@ -130,7 +162,10 @@ export function BookingsTable({
                         {fullName(b.firstName, b.lastName)}
                         {b.blocked && <BlockedChip />}
                       </p>
-                      <p className="text-xs text-slate-400">{b.unitNumber}</p>
+                      <p className="flex items-center gap-1.5 text-xs text-slate-400">
+                    {b.unitNumber}
+                    <UnitTypeBadge type={b.unitType} />
+                  </p>
                     </div>
                   </div>
                 </td>
@@ -172,7 +207,10 @@ export function BookingsTable({
                     {fullName(b.firstName, b.lastName)}
                     {b.blocked && <BlockedChip />}
                   </p>
-                  <p className="text-xs text-slate-400">{b.unitNumber}</p>
+                  <p className="flex items-center gap-1.5 text-xs text-slate-400">
+                    {b.unitNumber}
+                    <UnitTypeBadge type={b.unitType} />
+                  </p>
                 </div>
               </div>
               <StatusBadge status={b.status} />

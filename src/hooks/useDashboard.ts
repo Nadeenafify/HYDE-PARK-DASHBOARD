@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { Booking, BookingStatus, RestoreResult, Unit } from '../types'
+import type { Booking, BookingStatus, RestoreResult, Unit, UnitType } from '../types'
 import { api } from '../lib/api'
 
 export type HealthState = 'checking' | 'ok' | 'down'
@@ -21,9 +21,13 @@ export interface DashboardState {
     installationTime: string,
   ) => Promise<void>
   deleteBooking: (id: string) => Promise<void>
-  addUnit: (payload: { unitNumber: string; type?: string; owner?: string }) => Promise<void>
+  addUnit: (payload: {
+    unitNumber: string
+    type: UnitType
+    description?: string
+  }) => Promise<void>
   importUnits: (
-    units: { code: string; description?: string }[],
+    units: { code: string; type?: UnitType; description?: string }[],
   ) => Promise<{ created: number; skipped: number; total: number }>
   restore: (data: unknown) => Promise<RestoreResult>
   /** Populate with bundled demo data when the backend is unavailable. */
@@ -152,7 +156,7 @@ export function useDashboard(): DashboardState {
   )
 
   const addUnit = useCallback(
-    async (payload: { unitNumber: string; type?: string; owner?: string }) => {
+    async (payload: { unitNumber: string; type: UnitType; description?: string }) => {
       const created = await api.createUnit(payload)
       setUnits((prev) => [created, ...prev])
     },
@@ -160,7 +164,7 @@ export function useDashboard(): DashboardState {
   )
 
   const importUnits = useCallback(
-    async (units: { code: string; description?: string }[]) => {
+    async (units: { code: string; type?: UnitType; description?: string }[]) => {
       const result = await api.importUnits(units)
       await reload()
       return result

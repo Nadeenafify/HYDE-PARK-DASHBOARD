@@ -6,10 +6,9 @@ import {
   LogIn,
   Database,
   Activity,
-  Search,
 } from 'lucide-react'
 import type { ActivityLog } from '../types'
-import { SectionCard, Pagination } from './ui'
+import { SectionCard, Pagination, SearchInput, FilterChips } from './ui'
 import { usePagination } from '../hooks/usePagination'
 import { formatDateTime } from '../lib/utils'
 import { api } from '../lib/api'
@@ -85,38 +84,21 @@ export function LogsView() {
     <SectionCard
       title={`Activity log (${logs.length})`}
       action={
-        <div className="group relative w-44 sm:w-56">
-          <Search
-            size={15}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-brand-600"
-          />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search activity…"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-1.5 pl-8 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15"
-          />
-        </div>
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          placeholder="Search activity…"
+          className="w-full sm:w-60"
+        />
       }
     >
-      <div className="flex flex-wrap gap-1.5 border-b border-slate-100 px-5 py-3">
-        {FILTERS.map((f) => {
-          const active = filter === f.key
-          return (
-            <button
-              key={f.key}
-              type="button"
-              onClick={() => setFilter(f.key)}
-              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                active
-                  ? 'bg-linear-to-r from-slate-900 to-slate-700 text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {f.label}
-            </button>
-          )
-        })}
+      <div className="border-b border-slate-100 px-5 py-3">
+        <FilterChips
+          label="Category"
+          options={FILTERS}
+          value={filter}
+          onChange={setFilter}
+        />
       </div>
 
       {loading ? (

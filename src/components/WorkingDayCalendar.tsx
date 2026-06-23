@@ -15,15 +15,15 @@ function toISO(d: Date): string {
 }
 
 /**
- * Month calendar that disables days you can't postpone onto: past dates,
- * weekends (Fri/Sat), and admin-declared holidays. Mirrors the customer-facing
- * DateTimePicker so the dashboard refuses the same dates the server does.
+ * Month calendar that disables days you can't postpone onto: past dates and any
+ * weekday the admin schedule marks closed. Mirrors the customer-facing picker so
+ * the dashboard refuses the same dates the server does.
  */
-export function HolidayCalendar({
+export function WorkingDayCalendar({
   value,
   onChange,
   minISO,
-  closedDays,
+  workingDays,
 }: {
   /** Currently selected day as "YYYY-MM-DD", or '' if none. */
   value: string
@@ -31,10 +31,10 @@ export function HolidayCalendar({
   /** Earliest selectable day, "YYYY-MM-DD" (today). */
   minISO: string
   /**
-   * Admin-declared holidays, "YYYY-MM-DD" -> reason. null = not loaded yet, so
-   * admin holidays aren't marked yet (weekends and past days still are).
+   * Length-7 array (index 0 = Sun … 6 = Sat); true = open. null = not loaded yet,
+   * so only past days are disabled until the schedule arrives.
    */
-  closedDays: Map<string, string> | null
+  workingDays: boolean[] | null
 }) {
   const [vy, vm] = (value || minISO).split('-').map(Number)
   const [viewYear, setViewYear] = useState(vy)
@@ -55,6 +55,8 @@ export function HolidayCalendar({
     setViewYear(date.getFullYear())
     setViewMonth(date.getMonth())
   }
+
+  const isOpen = (weekday: number) => (workingDays ? !!workingDays[weekday] : true)
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3">
@@ -82,7 +84,7 @@ export function HolidayCalendar({
 
       <div className="mb-1 grid grid-cols-7 text-center text-[0.65rem] font-semibold text-slate-400">
         {WEEKDAYS.map((d, i) => (
-          <div key={d} className={i >= 5 ? 'text-slate-300' : ''}>
+          <div key={d} className={isOpen(i) ? '' : 'text-slate-300'}>
             {d}
           </div>
         ))}
@@ -93,24 +95,16 @@ export function HolidayCalendar({
           if (day === null) return <div key={`e-${idx}`} />
           const cellDate = new Date(viewYear, viewMonth, day)
           const iso = toISO(cellDate)
-          const weekday = cellDate.getDay() // 5 = Fri, 6 = Sat
-          const isWeekend = weekday === 5 || weekday === 6
-          const holiday = closedDays?.get(iso)
+          const closed = !isOpen(cellDate.getDay())
           const isPast = iso < minISO
-          const disabled = isPast || isWeekend || !!holiday
+          const disabled = isPast || closed
           const isSelected = iso === value
           return (
             <div key={iso} className="flex items-center justify-center">
               <button
                 type="button"
                 disabled={disabled}
-                title={
-                  holiday
-                    ? `عطلة رسمية (${holiday}) · Official holiday`
-                    : isWeekend
-                      ? 'الجمعة والسبت إجازة رسمية · Weekend holiday'
-                      : undefined
-                }
+                title={closed ? 'يوم غير متاح · Not a working day' : undefined}
                 onClick={() => onChange(iso)}
                 className={[
                   'flex h-8 w-8 items-center justify-center rounded-full transition',
@@ -129,7 +123,7 @@ export function HolidayCalendar({
       </div>
 
       <p className="mt-2 text-center text-[11px] text-slate-400">
-        الجمعة والسبت والأعياد الرسمية معطّلة · Weekends &amp; holidays disabled
+        الأيام غير المتاحة معطّلة · Closed days disabled
       </p>
     </div>
   )

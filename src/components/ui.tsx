@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import type { BookingStatus } from '../types'
+import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
+import type { BookingStatus, UnitType } from '../types'
+import { UNIT_TYPE_LABELS } from '../types'
 import { STATUS_META, initials } from '../lib/utils'
 
 /** Hyde Park Developments "H" monogram — transparent PNG served from /public. */
@@ -22,6 +23,28 @@ export function StatusBadge({ status }: { status: BookingStatus }) {
     >
       <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
       {meta.label}
+    </span>
+  )
+}
+
+/** Commercial / residential pill. Renders nothing for bookings with no type. */
+export function UnitTypeBadge({
+  type,
+  className = '',
+}: {
+  type?: UnitType
+  className?: string
+}) {
+  if (!type) return null
+  const tone =
+    type === 'commercial'
+      ? 'bg-violet-50 text-violet-700 ring-violet-200'
+      : 'bg-sky-50 text-sky-700 ring-sky-200'
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${tone} ${className}`}
+    >
+      {UNIT_TYPE_LABELS[type].en}
     </span>
   )
 }
@@ -111,6 +134,121 @@ export function StatCard({
         {value}
       </p>
       {hint != null && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
+    </div>
+  )
+}
+
+/**
+ * Search box with a leading icon and a clear (✕) button. Shared across every
+ * page that filters a list, so search looks and behaves the same everywhere.
+ */
+export function SearchInput({
+  value,
+  onChange,
+  placeholder,
+  className = 'w-full sm:max-w-xs',
+}: {
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  className?: string
+}) {
+  return (
+    <div className={`group relative ${className}`}>
+      <Search
+        size={16}
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-brand-600"
+      />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-9 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15"
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          aria-label="Clear search"
+          className="absolute right-2.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full bg-slate-200 text-slate-500 transition hover:bg-slate-300 hover:text-slate-700"
+        >
+          <X size={12} />
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** One choice in a {@link FilterChips} group. */
+export interface FilterOption<T extends string> {
+  key: T
+  label: string
+  /** Optional count badge shown after the label. */
+  count?: number
+  /** Optional accent dot — a Tailwind `bg-*` class (e.g. `bg-amber-500`). */
+  dot?: string
+}
+
+/**
+ * Labelled segmented control of filter chips — the active option is a raised
+ * white pill on a soft grey track. Shared by every list filter (status, type,
+ * category…) so all filters look identical across the dashboard.
+ */
+export function FilterChips<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label?: string
+  options: FilterOption<T>[]
+  value: T
+  onChange: (key: T) => void
+}) {
+  return (
+    <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+      {label && (
+        <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+          {label}
+        </span>
+      )}
+      <div className="flex flex-wrap items-center gap-1 rounded-2xl bg-slate-100 p-1">
+        {options.map((o) => {
+          const active = value === o.key
+          return (
+            <button
+              key={o.key}
+              type="button"
+              onClick={() => onChange(o.key)}
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold transition ${
+                active
+                  ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              {o.dot && (
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${o.dot} ${
+                    active ? '' : 'opacity-50'
+                  }`}
+                />
+              )}
+              {o.label}
+              {o.count !== undefined && (
+                <span
+                  className={`rounded-full px-1.5 py-px text-[10px] font-bold leading-none tabular-nums ${
+                    active
+                      ? 'bg-slate-100 text-slate-600'
+                      : 'bg-slate-200/70 text-slate-500'
+                  }`}
+                >
+                  {o.count}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

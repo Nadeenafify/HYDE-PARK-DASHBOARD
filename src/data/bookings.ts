@@ -1,7 +1,7 @@
 import type { Booking } from '../types'
 
 /**
- * Demo submissions for the HPD Triple Play form.
+ * Demo submissions for the HPD Home Connect form.
  *
  * To use live data instead, replace this array with a fetch to the JotForm
  * Submissions API and map each submission's answers onto the `Booking` shape:

@@ -10,7 +10,6 @@ import {
   History,
   X,
 } from 'lucide-react'
-import { Logo } from './ui'
 import type { HealthState } from '../hooks/useDashboard'
 
 export type View =
@@ -18,7 +17,7 @@ export type View =
   | 'bookings'
   | 'schedule'
   | 'units'
-  | 'holidays'
+  | 'working-hours'
   | 'postpones'
   | 'blocked'
   | 'users'
@@ -38,7 +37,7 @@ const NAV: {
   { id: 'bookings', label: 'Bookings', sub: 'الحجوزات', icon: ClipboardList },
   { id: 'schedule', label: 'Schedule', sub: 'جدول التركيب', icon: CalendarDays },
   { id: 'units', label: 'Units', sub: 'الوحدات', icon: Building2 },
-  { id: 'holidays', label: 'Holidays', sub: 'الإجازات', icon: CalendarOff },
+  { id: 'working-hours', label: 'Working Hours', sub: 'مواعيد العمل', icon: CalendarOff },
   { id: 'postpones', label: 'Postpones', sub: 'التأجيلات', icon: CalendarClock, managerUp: true },
   { id: 'blocked', label: 'Blocked', sub: 'المحظورون', icon: Ban, managerUp: true },
   { id: 'users', label: 'Users', sub: 'المستخدمون', icon: Users, superOnly: true },
@@ -97,42 +96,23 @@ export function Sidebar({
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex items-center gap-3 px-6 py-5">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-slate-50 to-slate-100 ring-1 ring-slate-200/70">
-            <Logo className="h-7 w-7" />
-          </span>
-          <div className="leading-tight">
-            <p className="text-sm font-bold tracking-wide text-slate-800">
-              HYDE PARK
-            </p>
-            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-slate-400">
-              Developments
-            </p>
-          </div>
+        <div className="flex items-center overflow-hidden">
+          <img
+            src="/HYDAPARK.png"
+            alt="Hyde Park Developments"
+            className="h-16 min-w-0 flex-1 object-cover object-center sm:h-18 lg:h-20"
+          />
           <button
             type="button"
             onClick={onClose}
-            className="ml-auto rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 lg:hidden"
+            className="mr-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-all duration-200 hover:bg-rose-50 hover:text-rose-500 active:scale-90 lg:hidden"
             aria-label="Close menu"
           >
-            <X size={18} />
+            <X size={16} strokeWidth={2.5} />
           </button>
         </div>
 
-        <div className="px-4">
-          <div className="relative overflow-hidden rounded-xl bg-linear-to-br from-brand-600 to-brand-800 px-4 py-3 shadow-soft">
-            <span className="pointer-events-none absolute -right-4 -top-6 h-16 w-16 rounded-full bg-white/10" />
-            <span className="pointer-events-none absolute -bottom-5 -left-3 h-12 w-12 rounded-full bg-white/5" />
-            <p className="relative text-xs font-semibold tracking-wide text-white">
-              HPD Triple Play
-            </p>
-            <p className="relative text-[11px] text-brand-100/90">
-              Bookings dashboard
-            </p>
-          </div>
-        </div>
-
-        <nav className="mt-5 flex-1 space-y-1 px-3">
+        <nav className="flex-1 space-y-1 px-3">
           {items.map((item) => {
             const active = view === item.id
             const Icon = item.icon

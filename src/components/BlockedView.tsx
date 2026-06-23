@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ShieldCheck, Phone, Search, Clock } from 'lucide-react'
+import { ShieldCheck, Phone, Clock } from 'lucide-react'
 import type { Booking, BlockEvent } from '../types'
-import { SectionCard, Pagination } from './ui'
+import { SectionCard, Pagination, SearchInput } from './ui'
 import { usePagination } from '../hooks/usePagination'
 import { useToast } from './Toast'
 import { formatDateTime, formatMobile } from '../lib/utils'
@@ -93,18 +93,12 @@ export function BlockedView({
     <SectionCard
       title={`Blocked customers (${blockedNow.length})`}
       action={
-        <div className="group relative w-full sm:w-56">
-          <Search
-            size={15}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-brand-600"
-          />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search number or name…"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-1.5 pl-8 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15"
-          />
-        </div>
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          placeholder="Search number or name…"
+          className="w-full sm:w-60"
+        />
       }
     >
       {total === 0 ? (

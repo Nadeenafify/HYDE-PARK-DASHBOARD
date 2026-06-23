@@ -381,7 +381,7 @@ export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
               </label>
             </div>
 
-            <div className="mt-5 flex items-center justify-between gap-2">
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               {editing.id !== currentUserId ? (
                 <button
                   type="button"
@@ -392,7 +392,7 @@ export function UsersAdmin({ currentUserId }: { currentUserId?: string }) {
                   {deleting ? 'Deleting…' : 'Delete'}
                 </button>
               ) : (
-                <span />
+                <span className="hidden sm:block" />
               )}
               <div className="flex gap-2">
                 <button

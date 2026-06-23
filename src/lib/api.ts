@@ -4,18 +4,18 @@ import type {
   Booking,
   BookingStatus,
   BlockEvent,
-  ClosedDay,
   Postpone,
   RestoreResult,
   Role,
+  Schedule,
   TimeSlot,
   Unit,
+  UnitType,
 } from '../types'
-import { TIME_SLOTS } from '../types'
 import { getToken, clearToken, notifyUnauthorized } from './auth'
 
 /**
- * API client for the HPD Triple Play backend.
+ * API client for the HPD Home Connect backend.
  *
  *   GET    /api/health
  *   GET    /api/units
@@ -132,22 +132,21 @@ function normalizeStatus(raw: unknown): BookingStatus {
   return 'pending'
 }
 
-/** Coerce assorted time formats ("13:00", "10 AM", "10:00:00") to a slot label. */
+/** Coerce assorted time formats ("13:00", "10 AM", "10:00:00") to a "h:mm AM/PM"
+ * label. Preserves custom/half-hour slots (slots are admin-configurable now). */
 function normalizeTimeSlot(raw: unknown): TimeSlot {
   const s = str(raw).trim()
-  if ((TIME_SLOTS as readonly string[]).includes(s)) return s as TimeSlot
+  if (!s) return ''
   const m = s.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i)
-  if (m) {
-    let hour = parseInt(m[1], 10)
-    const mer = m[3]?.toLowerCase()
-    if (mer === 'pm' && hour < 12) hour += 12
-    if (mer === 'am' && hour === 12) hour = 0
-    const period = hour >= 12 ? 'PM' : 'AM'
-    const h12 = hour % 12 === 0 ? 12 : hour % 12
-    const label = `${h12}:00 ${period}`
-    if ((TIME_SLOTS as readonly string[]).includes(label)) return label as TimeSlot
-  }
-  return (s || TIME_SLOTS[0]) as TimeSlot
+  if (!m) return s
+  let hour = parseInt(m[1], 10)
+  const mins = m[2] ?? '00'
+  const mer = m[3]?.toLowerCase()
+  if (mer === 'pm' && hour < 12) hour += 12
+  if (mer === 'am' && hour === 12) hour = 0
+  const period = hour >= 12 ? 'PM' : 'AM'
+  const h12 = hour % 12 === 0 ? 12 : hour % 12
+  return `${h12}:${mins} ${period}`
 }
 
 function splitName(full: string): { first: string; last: string } {
@@ -185,6 +184,14 @@ export function mapBooking(raw: Record<string, unknown>): Booking {
     unitNumber: str(
       pick(raw, 'unitCode', 'unitNumber', 'unit_number', 'unit', 'unitNo', 'code'),
     ),
+    unitType: (() => {
+      const t = str(pick(raw, 'unitType', 'unit_type') ?? '').toLowerCase()
+      return t === 'commercial'
+        ? 'commercial'
+        : t === 'residential'
+          ? 'residential'
+          : undefined
+    })(),
     firstName: first,
     lastName: last,
     mobile: str(pick(raw, 'mobile', 'phone', 'mobileNumber', 'mobile_number')),
@@ -227,15 +234,15 @@ export function mapBooking(raw: Record<string, unknown>): Booking {
 }
 
 export function mapUnit(raw: Record<string, unknown>): Unit {
-  const type = pick(raw, 'description', 'type', 'unitType')
-  const owner = pick(raw, 'owner', 'ownerName')
+  const t = str(pick(raw, 'type', 'unitType') ?? 'residential').toLowerCase()
+  const desc = pick(raw, 'description', 'desc')
   return {
     id: str(pick(raw, 'id', '_id', 'unitId') ?? pick(raw, 'code', 'unitNumber')),
     unitNumber: str(
       pick(raw, 'code', 'unitNumber', 'unit_number', 'unit', 'number', 'name'),
     ),
-    type: type ? str(type) : undefined,
-    owner: owner ? str(owner) : undefined,
+    type: t === 'commercial' ? 'commercial' : 'residential',
+    description: desc ? str(desc) : undefined,
     booked: Boolean(pick(raw, 'booked', 'hasBooking', 'isBooked') ?? false),
   }
 }
@@ -327,21 +334,25 @@ export const api = {
 
   createUnit: async (payload: {
     unitNumber: string
-    type?: string
-    owner?: string
+    type: UnitType
+    description?: string
   }): Promise<Unit> => {
-    // Backend stores units as { code, description }.
-    const body = { code: payload.unitNumber, description: payload.type ?? null }
+    // Backend stores units as { code, type, description }.
+    const body = {
+      code: payload.unitNumber,
+      type: payload.type,
+      description: payload.description ?? null,
+    }
     const res = await request<Record<string, unknown>>(
       '/units',
       jsonInit('POST', body),
     )
-    return mapUnit(res ?? { code: payload.unitNumber, description: payload.type })
+    return mapUnit(res ?? body)
   },
 
   /** Import many units at once (e.g. parsed from an Excel file). */
   importUnits: async (
-    units: { code: string; description?: string }[],
+    units: { code: string; type?: UnitType; description?: string }[],
   ): Promise<{ created: number; skipped: number; total: number }> =>
     request('/units/bulk', jsonInit('POST', { units })),
 
@@ -400,26 +411,18 @@ export const api = {
   },
 
   /* ---- closed days / holidays ---- */
-  getClosedDays: async (): Promise<ClosedDay[]> =>
-    asArray(await request<unknown>('/closed-days')).map((d) => ({
-      id: str(pick(d, 'id', '_id')),
-      date: str(pick(d, 'date')).slice(0, 10),
-      reason: (pick(d, 'reason') as string | undefined) ?? null,
-    })),
+  /** Working days + time slots config (public read). */
+  getSchedule: (): Promise<Schedule> => request<Schedule>('/schedule'),
 
-  addClosedDay: async (date: string, reason?: string): Promise<ClosedDay> => {
-    const d = await request<Record<string, unknown>>(
-      '/closed-days',
-      jsonInit('POST', { date, reason: reason || undefined }),
-    )
-    return {
-      id: str(pick(d, 'id', '_id')),
-      date: str(pick(d, 'date')).slice(0, 10),
-      reason: (pick(d, 'reason') as string | undefined) ?? null,
-    }
-  },
-
-  deleteClosedDay: async (id: string): Promise<void> => {
-    await request(`/closed-days/${id}`, { method: 'DELETE' })
-  },
+  /** Update working days + time slots (manager / super admin). */
+  updateSchedule: (schedule: Schedule): Promise<Schedule> =>
+    request(
+      '/schedule',
+      // Send only the editable fields — the API rejects extras (id/updatedAt).
+      jsonInit('PUT', {
+        mode: schedule.mode,
+        globalSlots: schedule.globalSlots,
+        days: schedule.days,
+      }),
+    ),
 }

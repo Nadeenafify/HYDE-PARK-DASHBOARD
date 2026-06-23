@@ -8,9 +8,11 @@ export const TIME_SLOTS = [
   '4:00 PM',
   '5:00 PM',
   '6:00 PM',
-] as const
+]
 
-export type TimeSlot = (typeof TIME_SLOTS)[number]
+// Slots are admin-configurable now, so this is a free string. TIME_SLOTS above
+// is just the default list used as a fallback for charts / sorting.
+export type TimeSlot = string
 
 export const STATUSES = [
   'pending',
@@ -40,11 +42,19 @@ export interface AppUser {
 }
 
 /** A day on which installations are not available (admin-declared holiday). */
-export interface ClosedDay {
-  id: string
-  /** ISO date (YYYY-MM-DD). */
-  date: string
-  reason: string | null
+/** Admin-configured working schedule (singleton) — drives the booking calendar. */
+export type ScheduleMode = 'global' | 'perDay'
+
+export interface DaySchedule {
+  open: boolean
+  slots: string[]
+}
+
+export interface Schedule {
+  mode: ScheduleMode
+  globalSlots: string[]
+  /** 7 entries indexed by weekday (0 = Sunday … 6 = Saturday). */
+  days: DaySchedule[]
 }
 
 /** An activity-log entry (who did what, when). */
@@ -108,12 +118,21 @@ export interface RestoreResult {
   bookings: RestoreEntityResult
 }
 
+/** A unit is classified as either commercial or residential. */
+export type UnitType = 'commercial' | 'residential'
+
+export const UNIT_TYPE_LABELS: Record<UnitType, { en: string; ar: string }> = {
+  commercial: { en: 'Commercial', ar: 'تجاري' },
+  residential: { en: 'Residential', ar: 'سكني' },
+}
+
 /** A unit available for / referenced by bookings (GET/POST /api/units). */
 export interface Unit {
   id: string
   unitNumber: string
-  type?: string
-  owner?: string
+  type: UnitType
+  /** Optional free-text description / notes. */
+  description?: string
   /** True if a booking already exists for this unit. */
   booked?: boolean
 }
@@ -127,10 +146,12 @@ export interface PostponeRecord {
   at: string
 }
 
-/** Mirrors the fields of the HPD Triple Play JotForm. */
+/** Mirrors the fields of the HPD Home Connect JotForm. */
 export interface Booking {
   id: string
   unitNumber: string
+  /** Snapshot of the unit's category at booking time (commercial/residential). */
+  unitType?: UnitType
   firstName: string
   lastName: string
   mobile: string

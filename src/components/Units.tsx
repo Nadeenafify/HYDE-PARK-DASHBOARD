@@ -1,31 +1,51 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Building2, Plus, CheckCircle2, Search, Upload, Tag, User } from 'lucide-react'
+import { Building2, Plus, CheckCircle2, Upload, Tag } from 'lucide-react'
 import type { ReactNode } from 'react'
-import type { Unit } from '../types'
-import { SectionCard, Pagination } from './ui'
+import type { Unit, UnitType } from '../types'
+import { UNIT_TYPE_LABELS } from '../types'
+import {
+  SectionCard,
+  Pagination,
+  SearchInput,
+  FilterChips,
+  type FilterOption,
+} from './ui'
 import { useToast } from './Toast'
 import { usePagination } from '../hooks/usePagination'
 
 type BookedFilter = 'all' | 'available' | 'booked'
+type TypeFilter = 'all' | UnitType
 
 // Tolerant header matching so common English/Arabic column names all work.
 const CODE_KEYS = [
   'code', 'unit', 'unit number', 'unitnumber', 'unit_code', 'unit code',
   'رقم الوحدة', 'الوحدة', 'الوحده', 'رقم',
 ]
+const TYPE_KEYS = [
+  'type', 'category', 'kind', 'نوع', 'النوع', 'الفئة', 'فئة', 'تصنيف',
+]
 const DESC_KEYS = [
-  'description', 'type', 'desc', 'نوع', 'النوع', 'الوصف', 'وصف',
+  'description', 'desc', 'notes', 'الوصف', 'وصف', 'تفاصيل', 'ملاحظات',
 ]
 
 function norm(v: unknown): string {
   return String(v ?? '').trim().toLowerCase()
 }
 
+/** Map a free-text cell to a unit type; undefined lets the backend default it. */
+function typeFromText(v: unknown): UnitType | undefined {
+  const s = norm(v)
+  if (!s) return undefined
+  if (s.startsWith('comm') || s.includes('تجار')) return 'commercial'
+  if (s.startsWith('res') || s.includes('سكن')) return 'residential'
+  return undefined
+}
+
 type ParsedUnits = {
-  rows: { code: string; description?: string }[]
+  rows: { code: string; type?: UnitType; description?: string }[]
   /**
    * Named header columns present in the file that we did not map to
-   * code/description and therefore dropped. Only known when a header row
+   * code/type/description and therefore dropped. Only known when a header row
    * exists — without headers the columns have no names to report.
    */
   ignoredColumns: string[]
@@ -34,7 +54,7 @@ type ParsedUnits = {
 /**
  * Parse an .xlsx/.csv into unit rows. Works with or without a header row:
  * if the first row looks like headers we map by column name, otherwise the
- * first column is the code and the second (if any) is the description.
+ * columns are taken positionally as code, type, description.
  */
 async function parseUnitsFile(file: File): Promise<ParsedUnits> {
   // Lazy-load SheetJS only when an import actually happens (keeps the main
@@ -54,48 +74,45 @@ async function parseUnitsFile(file: File): Promise<ParsedUnits> {
   const rawHeader = rows[0] as unknown[]
   const first = rawHeader.map((c) => norm(c))
   const hasHeader = first.some(
-    (c) => CODE_KEYS.includes(c) || DESC_KEYS.includes(c),
+    (c) => CODE_KEYS.includes(c) || TYPE_KEYS.includes(c) || DESC_KEYS.includes(c),
   )
 
   let codeIdx = 0
-  let descIdx = 1
+  let typeIdx = 1
+  let descIdx = 2
   let dataRows = rows
   if (hasHeader) {
     const ci = first.findIndex((c) => CODE_KEYS.includes(c))
+    const ti = first.findIndex((c) => TYPE_KEYS.includes(c))
     const di = first.findIndex((c) => DESC_KEYS.includes(c))
     codeIdx = ci >= 0 ? ci : 0
+    typeIdx = ti
     descIdx = di
     dataRows = rows.slice(1)
   }
 
   // Collect any named header column we didn't use, so the UI can tell the
-  // user exactly what was dropped (e.g. an "Owner" column the schema has no
-  // place for). Skipped entirely when the file has no header row.
+  // user exactly what was dropped. Skipped when the file has no header row.
   const ignoredColumns: string[] = []
   if (hasHeader) {
     rawHeader.forEach((h, idx) => {
-      if (idx === codeIdx || idx === descIdx) return
+      if (idx === codeIdx || idx === typeIdx || idx === descIdx) return
       const name = String(h ?? '').trim()
       if (name) ignoredColumns.push(name)
     })
   }
 
-  const out: { code: string; description?: string }[] = []
+  const out: { code: string; type?: UnitType; description?: string }[] = []
   for (const r of dataRows) {
     const arr = r as unknown[]
     const code = String(arr[codeIdx] ?? '').trim()
     if (!code) continue
+    const type = typeIdx >= 0 ? typeFromText(arr[typeIdx]) : undefined
     const description = descIdx >= 0 ? String(arr[descIdx] ?? '').trim() : ''
-    out.push({ code, description: description || undefined })
+    out.push({ code, type, description: description || undefined })
   }
   return { rows: out, ignoredColumns }
 }
-
-const BOOKED_FILTERS: { key: BookedFilter; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'available', label: 'Available' },
-  { key: 'booked', label: 'Booked' },
-]
 
 export function Units({
   units,
@@ -104,16 +121,20 @@ export function Units({
   canManage,
 }: {
   units: Unit[]
-  onAdd: (payload: { unitNumber: string; type?: string; owner?: string }) => Promise<void>
+  onAdd: (payload: {
+    unitNumber: string
+    type: UnitType
+    description?: string
+  }) => Promise<void>
   onImport: (
-    units: { code: string; description?: string }[],
+    units: { code: string; type?: UnitType; description?: string }[],
   ) => Promise<{ created: number; skipped: number; total: number }>
   /** Only Super Admins can add or import units. */
   canManage: boolean
 }) {
   const [unitNumber, setUnitNumber] = useState('')
-  const [type, setType] = useState('')
-  const [owner, setOwner] = useState('')
+  const [type, setType] = useState<UnitType | ''>('')
+  const [description, setDescription] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -153,20 +174,22 @@ export function Units({
   // List filters
   const [query, setQuery] = useState('')
   const [bookedFilter, setBookedFilter] = useState<BookedFilter>('all')
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return units.filter((u) => {
       if (bookedFilter === 'booked' && !u.booked) return false
       if (bookedFilter === 'available' && u.booked) return false
+      if (typeFilter !== 'all' && u.type !== typeFilter) return false
       if (!q) return true
       return (
         u.unitNumber.toLowerCase().includes(q) ||
-        (u.type ?? '').toLowerCase().includes(q) ||
-        (u.owner ?? '').toLowerCase().includes(q)
+        u.type.toLowerCase().includes(q) ||
+        (u.description ?? '').toLowerCase().includes(q)
       )
     })
-  }, [units, query, bookedFilter])
+  }, [units, query, bookedFilter, typeFilter])
 
   const { pageItems, page, pageSize, total, totalPages, start, setPage, setPageSize } =
     usePagination(filtered)
@@ -174,22 +197,60 @@ export function Units({
   // Jump back to the first page whenever the filters change.
   useEffect(() => {
     setPage(1)
-  }, [query, bookedFilter, setPage])
+  }, [query, bookedFilter, typeFilter, setPage])
+
+  const bookedOptions: FilterOption<BookedFilter>[] = useMemo(
+    () => [
+      { key: 'all', label: 'All', count: units.length },
+      {
+        key: 'available',
+        label: 'Available',
+        count: units.filter((u) => !u.booked).length,
+        dot: 'bg-emerald-500',
+      },
+      {
+        key: 'booked',
+        label: 'Booked',
+        count: units.filter((u) => u.booked).length,
+        dot: 'bg-brand-500',
+      },
+    ],
+    [units],
+  )
+
+  const typeOptions: FilterOption<TypeFilter>[] = useMemo(
+    () => [
+      { key: 'all', label: 'All', count: units.length },
+      {
+        key: 'residential',
+        label: 'Residential',
+        count: units.filter((u) => u.type === 'residential').length,
+        dot: 'bg-sky-500',
+      },
+      {
+        key: 'commercial',
+        label: 'Commercial',
+        count: units.filter((u) => u.type === 'commercial').length,
+        dot: 'bg-violet-500',
+      },
+    ],
+    [units],
+  )
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!unitNumber.trim()) return
+    if (!unitNumber.trim() || !type) return
     setSaving(true)
     setError(null)
     try {
       await onAdd({
         unitNumber: unitNumber.trim(),
-        type: type.trim() || undefined,
-        owner: owner.trim() || undefined,
+        type,
+        description: description.trim() || undefined,
       })
       setUnitNumber('')
       setType('')
-      setOwner('')
+      setDescription('')
       toast.success('Unit added')
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Could not add unit.'
@@ -206,38 +267,27 @@ export function Units({
         title={`Units (${units.length})`}
         className={canManage ? 'lg:col-span-2' : ''}
         action={
-          <div className="group relative w-44 sm:w-56">
-            <Search
-              size={15}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-brand-600"
-            />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search units…"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-1.5 pl-8 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15"
-            />
-          </div>
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search units…"
+            className="w-full sm:w-60"
+          />
         }
       >
-        <div className="flex flex-wrap gap-1.5 border-b border-slate-100 px-5 py-3">
-          {BOOKED_FILTERS.map((f) => {
-            const active = bookedFilter === f.key
-            return (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setBookedFilter(f.key)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                  active
-                    ? 'bg-linear-to-r from-slate-900 to-slate-700 text-white shadow-sm'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {f.label}
-              </button>
-            )
-          })}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-slate-100 px-5 py-3">
+          <FilterChips
+            label="Availability"
+            options={bookedOptions}
+            value={bookedFilter}
+            onChange={setBookedFilter}
+          />
+          <FilterChips
+            label="Type"
+            options={typeOptions}
+            value={typeFilter}
+            onChange={setTypeFilter}
+          />
         </div>
 
         {total === 0 ? (
@@ -255,7 +305,7 @@ export function Units({
               {pageItems.map((u) => (
                 <li
                   key={u.id}
-                  className="group flex items-center gap-3.5 px-5 py-3.5 transition hover:bg-slate-50/80"
+                  className="group flex items-center gap-3 px-5 py-3.5 transition hover:bg-slate-50/80"
                 >
                   <span
                     className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br shadow-sm transition group-hover:scale-105 ${
@@ -270,19 +320,24 @@ export function Units({
                     <p className="truncate font-semibold text-slate-800">
                       {u.unitNumber}
                     </p>
-                    <p className="truncate text-xs text-slate-400">
-                      {[u.type, u.owner].filter(Boolean).join(' · ') || 'No type set'}
-                    </p>
+                    {u.description && (
+                      <p className="truncate text-xs text-slate-400">
+                        {u.description}
+                      </p>
+                    )}
                   </div>
-                  {u.booked ? (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                      <CheckCircle2 size={12} /> Booked
-                    </span>
-                  ) : (
-                    <span className="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">
-                      Available
-                    </span>
-                  )}
+                  <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-1.5">
+                    <UnitTypeBadge type={u.type} />
+                    {u.booked ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                        <CheckCircle2 size={12} /> Booked
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">
+                        Available
+                      </span>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -301,76 +356,109 @@ export function Units({
       </SectionCard>
 
       {canManage && (
-      <SectionCard title="Add unit">
-        <form onSubmit={submit} className="space-y-4 px-5 py-5">
-          <IconInput
-            label="Unit number"
-            required
-            icon={<Building2 size={15} />}
-            value={unitNumber}
-            onChange={setUnitNumber}
-            placeholder="PK1-A-0312"
-          />
-          <IconInput
-            label="Type"
-            icon={<Tag size={15} />}
-            value={type}
-            onChange={setType}
-            placeholder="Apartment / Villa"
-          />
-          <IconInput
-            label="Owner"
-            icon={<User size={15} />}
-            value={owner}
-            onChange={setOwner}
-            placeholder="Owner name"
-          />
-          {error && <p className="text-xs font-medium text-rose-600">{error}</p>}
-          <button
-            type="submit"
-            disabled={saving || !unitNumber.trim()}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-linear-to-r from-brand-600 to-brand-700 px-3 py-2.5 text-sm font-semibold text-white shadow-sm shadow-brand-600/20 transition hover:from-brand-500 hover:to-brand-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none"
-          >
-            <Plus size={16} /> {saving ? 'Adding…' : 'Add unit'}
-          </button>
-        </form>
+        <SectionCard title="Add unit">
+          <form onSubmit={submit} className="space-y-4 px-5 py-5">
+            <IconInput
+              label="Unit number"
+              required
+              icon={<Building2 size={15} />}
+              value={unitNumber}
+              onChange={setUnitNumber}
+              placeholder="PK1-A-0312"
+            />
 
-        <div className="flex items-center gap-3 px-5">
-          <span className="h-px flex-1 bg-slate-100" />
-          <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-            or
-          </span>
-          <span className="h-px flex-1 bg-slate-100" />
-        </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-500">
+                Type <span className="text-brand-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {(['residential', 'commercial'] as const).map((t) => {
+                  const active = type === t
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setType(t)}
+                      className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
+                        active
+                          ? 'border-brand-600 bg-brand-600 text-white shadow-sm'
+                          : 'border-slate-200 bg-slate-50/50 text-slate-600 hover:border-brand-300 hover:bg-brand-50/40'
+                      }`}
+                    >
+                      {UNIT_TYPE_LABELS[t].en}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
-        <div className="px-5 pb-5 pt-4">
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            className="hidden"
-            onChange={handleImportFile}
-          />
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={importing}
-            className="group flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/40 px-4 py-6 text-center transition hover:border-brand-300 hover:bg-brand-50/40 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-brand-600 shadow-sm ring-1 ring-slate-100 transition group-hover:ring-brand-200">
-              <Upload size={18} />
+            <IconInput
+              label="Description"
+              icon={<Tag size={15} />}
+              value={description}
+              onChange={setDescription}
+              placeholder="Optional notes"
+            />
+            {error && <p className="text-xs font-medium text-rose-600">{error}</p>}
+            <button
+              type="submit"
+              disabled={saving || !unitNumber.trim() || !type}
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-linear-to-r from-brand-600 to-brand-700 px-3 py-2.5 text-sm font-semibold text-white shadow-sm shadow-brand-600/20 transition hover:from-brand-500 hover:to-brand-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none"
+            >
+              <Plus size={16} /> {saving ? 'Adding…' : 'Add unit'}
+            </button>
+          </form>
+
+          <div className="flex items-center gap-3 px-5">
+            <span className="h-px flex-1 bg-slate-100" />
+            <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+              or
             </span>
-            <span className="text-sm font-semibold text-slate-700">
-              {importing ? 'Importing…' : 'Import from Excel'}
-            </span>
-            <span className="text-[11px] text-slate-400">
-              .xlsx / .csv · duplicates skipped
-            </span>
-          </button>
-        </div>
-      </SectionCard>
+            <span className="h-px flex-1 bg-slate-100" />
+          </div>
+
+          <div className="px-5 pb-5 pt-4">
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+              onChange={handleImportFile}
+            />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={importing}
+              className="group flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/40 px-4 py-6 text-center transition hover:border-brand-300 hover:bg-brand-50/40 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-brand-600 shadow-sm ring-1 ring-slate-100 transition group-hover:ring-brand-200">
+                <Upload size={18} />
+              </span>
+              <span className="text-sm font-semibold text-slate-700">
+                {importing ? 'Importing…' : 'Import from Excel'}
+              </span>
+              <span className="text-[11px] text-slate-400">
+                Columns: code · type · description · duplicates skipped
+              </span>
+            </button>
+          </div>
+        </SectionCard>
       )}
     </div>
+  )
+}
+
+function UnitTypeBadge({ type }: { type: UnitType }) {
+  const tone =
+    type === 'commercial'
+      ? 'bg-violet-50 text-violet-700 ring-violet-200'
+      : 'bg-sky-50 text-sky-700 ring-sky-200'
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${tone}`}
+    >
+      {UNIT_TYPE_LABELS[type].en}
+    </span>
   )
 }
 

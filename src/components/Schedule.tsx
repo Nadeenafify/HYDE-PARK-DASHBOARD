@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronRight, Clock, Search } from 'lucide-react'
-import type { Booking, BookingStatus } from '../types'
-import { TIME_SLOTS, STATUSES } from '../types'
+import { CalendarDays, ChevronRight, Clock } from 'lucide-react'
+import type { Booking, BookingStatus, UnitType } from '../types'
+import { TIME_SLOTS, STATUSES, UNIT_TYPE_LABELS } from '../types'
 import {
   fullName,
   formatDate,
@@ -9,10 +9,18 @@ import {
   daysFromToday,
   STATUS_META,
 } from '../lib/utils'
-import { Avatar, Pagination, StatusBadge } from './ui'
+import {
+  Avatar,
+  Pagination,
+  StatusBadge,
+  SearchInput,
+  FilterChips,
+  type FilterOption,
+} from './ui'
 import { usePagination } from '../hooks/usePagination'
 
 type StatusFilter = BookingStatus | 'all'
+type TypeFilter = UnitType | 'all'
 
 /** Compact calendar parts for a day tile, e.g. { weekday: "THU", day: "18" }. */
 function dateParts(iso: string) {
@@ -40,6 +48,7 @@ export function Schedule({
 }) {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
 
   // Upcoming, non-cancelled bookings matching the search — the set the status
   // filter pills count against, before the status filter itself is applied.
@@ -67,11 +76,23 @@ export function Schedule({
     return c
   }, [base])
 
+  const typeCounts = useMemo(() => {
+    const c: Record<TypeFilter, number> = {
+      all: base.length,
+      residential: 0,
+      commercial: 0,
+    }
+    for (const b of base) {
+      if (b.unitType === 'residential') c.residential++
+      else if (b.unitType === 'commercial') c.commercial++
+    }
+    return c
+  }, [base])
+
   const days = useMemo(() => {
-    const active =
-      statusFilter === 'all'
-        ? base
-        : base.filter((b) => b.status === statusFilter)
+    const active = base
+      .filter((b) => statusFilter === 'all' || b.status === statusFilter)
+      .filter((b) => typeFilter === 'all' || b.unitType === typeFilter)
     const byDate = new Map<string, Booking[]>()
     for (const b of active) {
       const list = byDate.get(b.installationDate) ?? []
@@ -86,7 +107,7 @@ export function Schedule({
           (a, b) => TIME_SLOTS.indexOf(a.timeSlot) - TIME_SLOTS.indexOf(b.timeSlot),
         ),
       }))
-  }, [base, statusFilter])
+  }, [base, statusFilter, typeFilter])
 
   // Paginate by day group — a handful of days per page.
   const { pageItems, page, pageSize, total, totalPages, start, setPage, setPageSize } =
@@ -95,55 +116,59 @@ export function Schedule({
   // Jump back to the first page whenever the filters change.
   useEffect(() => {
     setPage(1)
-  }, [query, statusFilter, setPage])
+  }, [query, statusFilter, typeFilter, setPage])
 
   const statusFilters = [
     'all',
     ...STATUSES.filter((s) => s !== 'cancelled'),
   ] as StatusFilter[]
 
+  const statusOptions: FilterOption<StatusFilter>[] = statusFilters.map((s) => ({
+    key: s,
+    label: s === 'all' ? 'All' : STATUS_META[s].label,
+    count: counts[s],
+    dot: s === 'all' ? undefined : STATUS_META[s].dot,
+  }))
+
+  const typeOptions: FilterOption<TypeFilter>[] = [
+    { key: 'all', label: 'All', count: typeCounts.all },
+    {
+      key: 'residential',
+      label: UNIT_TYPE_LABELS.residential.en,
+      count: typeCounts.residential,
+      dot: 'bg-sky-500',
+    },
+    {
+      key: 'commercial',
+      label: UNIT_TYPE_LABELS.commercial.en,
+      count: typeCounts.commercial,
+      dot: 'bg-violet-500',
+    },
+  ]
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/70 bg-white px-5 py-4 shadow-soft sm:flex-row sm:items-center sm:justify-between">
-        <div className="group relative w-full sm:max-w-xs">
-          <Search
-            size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-brand-600"
-          />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name or unit…"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-3 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15"
-          />
-        </div>
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          placeholder="Search name or unit…"
+          className="w-full sm:max-w-xs"
+        />
 
-        <div className="flex flex-wrap gap-1.5">
-          {statusFilters.map((s) => {
-            const active = statusFilter === s
-            const label = s === 'all' ? 'All' : STATUS_META[s].label
-            return (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setStatusFilter(s)}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${
-                  active
-                    ? 'bg-linear-to-r from-slate-900 to-slate-700 text-white shadow-sm'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {label}
-                <span
-                  className={`rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                    active ? 'bg-white/20 text-white' : 'bg-white text-slate-500'
-                  }`}
-                >
-                  {counts[s]}
-                </span>
-              </button>
-            )
-          })}
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5">
+          <FilterChips
+            label="Status"
+            options={statusOptions}
+            value={statusFilter}
+            onChange={setStatusFilter}
+          />
+          <FilterChips
+            label="Type"
+            options={typeOptions}
+            value={typeFilter}
+            onChange={setTypeFilter}
+          />
         </div>
       </div>
 

@@ -11,8 +11,8 @@ import {
   Ban,
   ShieldCheck,
 } from 'lucide-react'
-import type { Booking, BookingStatus } from '../types'
-import { STATUSES, TIME_SLOTS } from '../types'
+import type { Booking, BookingStatus, Schedule } from '../types'
+import { STATUSES } from '../types'
 import { api } from '../lib/api'
 import {
   fullName,
@@ -21,8 +21,16 @@ import {
   formatMobile,
   STATUS_META,
 } from '../lib/utils'
-import { Avatar, StatusBadge } from './ui'
-import { HolidayCalendar } from './HolidayCalendar'
+import { Avatar, StatusBadge, UnitTypeBadge } from './ui'
+import { WorkingDayCalendar } from './WorkingDayCalendar'
+
+/** Bookable slots for an ISO date per the schedule — empty if the day is closed. */
+function slotsForISO(schedule: Schedule | null, iso: string): string[] {
+  if (!schedule || !iso) return []
+  const day = schedule.days?.[new Date(`${iso}T00:00:00`).getDay()]
+  if (!day || !day.open) return []
+  return schedule.mode === 'global' ? schedule.globalSlots : day.slots
+}
 
 function Field({
   icon,
@@ -67,23 +75,22 @@ export function BookingDetail({
   const [newTime, setNewTime] = useState('')
   const [postponing, setPostponing] = useState(false)
   const [postponeError, setPostponeError] = useState<string | null>(null)
-  // Admin-declared holidays, "YYYY-MM-DD" -> reason. null = not loaded yet.
-  // Loaded eagerly when the panel opens so a holiday is caught the instant a
-  // date is picked, and confirm stays blocked until it has actually loaded.
-  const [closedDays, setClosedDays] = useState<Map<string, string> | null>(null)
+  // Admin working schedule. null = not loaded yet. Loaded when the panel opens so
+  // the reschedule calendar can disable closed days and confirm stays blocked
+  // until it has loaded.
+  const [schedule, setSchedule] = useState<Schedule | null>(null)
 
   useEffect(() => {
     if (!booking) return
     let active = true
     api
-      .getClosedDays()
-      .then((days) => {
-        if (active)
-          setClosedDays(new Map(days.map((d) => [d.date, d.reason ?? ''])))
+      .getSchedule()
+      .then((s) => {
+        if (active) setSchedule(s)
       })
       .catch(() => {
-        // Non-fatal: the server still rejects holidays on submit.
-        if (active) setClosedDays(new Map())
+        // Non-fatal: the server still enforces working days/slots on submit.
+        if (active) setSchedule(null)
       })
     return () => {
       active = false
@@ -96,27 +103,12 @@ export function BookingDetail({
   const shortId = booking.id.slice(0, 8).toUpperCase()
   const todayISO = new Date().toISOString().slice(0, 10)
 
-  /**
-   * Why `date` (YYYY-MM-DD) can't be a postpone target, or null if it's fine.
-   * Mirrors the backend's assertBookableDate: Fri/Sat and admin-closed days are
-   * official holidays. Uses UTC weekday to match the server exactly.
-   */
-  function holidayReason(date: string): string | null {
-    if (!date) return null
-    const weekday = new Date(`${date}T00:00:00Z`).getUTCDay()
-    if (weekday === 5 || weekday === 6) {
-      return 'الجمعة والسبت إجازة رسمية · Fridays & Saturdays are official holidays.'
-    }
-    const reason = closedDays?.get(date)
-    if (reason !== undefined) {
-      return reason
-        ? `عطلة رسمية (${reason}) · Official holiday.`
-        : 'عطلة رسمية · Official holiday.'
-    }
-    return null
-  }
-
-  const dateIssue = holidayReason(newDate)
+  // Slots offered on the chosen day, and why the day can't be booked (if so).
+  const slotOptions = slotsForISO(schedule, newDate)
+  const dateIssue =
+    schedule && newDate && slotOptions.length === 0
+      ? 'هذا اليوم غير متاح للحجز · Not a working day'
+      : null
 
   function openReschedule() {
     if (!booking) return
@@ -128,11 +120,14 @@ export function BookingDetail({
 
   async function doPostpone() {
     if (!booking) return
-    // Don't submit until the holiday list is loaded, then re-check the date.
-    if (closedDays === null) return
-    const issue = holidayReason(newDate)
-    if (issue) {
-      setPostponeError(issue)
+    // Don't submit until the schedule has loaded, then re-check day + time.
+    if (schedule === null) return
+    if (slotOptions.length === 0) {
+      setPostponeError('هذا اليوم غير متاح للحجز · Not a working day')
+      return
+    }
+    if (!slotOptions.includes(newTime)) {
+      setPostponeError('برجاء اختيار موعد متاح · Pick an available time')
       return
     }
     setPostponeError(null)
@@ -213,7 +208,10 @@ export function BookingDetail({
 
           <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
             <Field icon={<Home size={16} />} label="Unit Number / رقم الوحدة">
-              {booking.unitNumber}
+              <span className="inline-flex items-center gap-2">
+                {booking.unitNumber}
+                <UnitTypeBadge type={booking.unitType} />
+              </span>
             </Field>
             <Field icon={<Phone size={16} />} label="Mobile / رقم التليفون">
               <a
@@ -286,24 +284,27 @@ export function BookingDetail({
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
                 Postpone to / تأجيل إلى
               </p>
-              <HolidayCalendar
+              <WorkingDayCalendar
                 value={newDate}
                 onChange={(iso) => {
                   setNewDate(iso)
+                  // Drop the chosen time if it isn't offered on the new day.
+                  if (!slotsForISO(schedule, iso).includes(newTime)) setNewTime('')
                   setPostponeError(null)
                 }}
                 minISO={todayISO}
-                closedDays={closedDays}
+                workingDays={schedule ? schedule.days.map((d) => d.open) : null}
               />
               <select
                 value={newTime}
                 onChange={(e) => setNewTime(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20"
+                disabled={slotOptions.length === 0}
+                className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
               >
                 <option value="" disabled>
-                  Time / الوقت
+                  {slotOptions.length === 0 ? 'No times for this day' : 'Time / الوقت'}
                 </option>
-                {TIME_SLOTS.map((t) => (
+                {slotOptions.map((t) => (
                   <option key={t} value={t}>
                     {t}
                   </option>
@@ -315,9 +316,9 @@ export function BookingDetail({
                   <span>{dateIssue}</span>
                 </p>
               ) : (
-                closedDays === null && (
+                schedule === null && (
                   <p className="text-xs text-slate-400">
-                    Checking holidays… · جارٍ التحقق من الإجازات
+                    Checking schedule… · جارٍ تحميل المواعيد
                   </p>
                 )
               )}
@@ -333,7 +334,8 @@ export function BookingDetail({
                     !newDate ||
                     !newTime ||
                     !!dateIssue ||
-                    closedDays === null
+                    schedule === null ||
+                    !slotOptions.includes(newTime)
                   }
                   className="flex-1 rounded-lg bg-linear-to-r from-slate-900 to-slate-800 px-3 py-2 text-sm font-semibold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >

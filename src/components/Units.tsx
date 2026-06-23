@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Building2, Plus, CheckCircle2, Upload, Tag } from 'lucide-react'
+import { Building2, Plus, CheckCircle2, Upload, Tag, Trash2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { Unit } from '../types'
 import {
@@ -100,6 +100,7 @@ export function Units({
   units,
   onAdd,
   onImport,
+  onDelete,
   canManage,
 }: {
   units: Unit[]
@@ -110,13 +111,15 @@ export function Units({
   onImport: (
     units: { code: string; description?: string }[],
   ) => Promise<{ created: number; skipped: number; total: number }>
-  /** Only Super Admins can add or import units. */
+  onDelete: (id: string) => Promise<void>
+  /** Only Super Admins can add, import, or delete units. */
   canManage: boolean
 }) {
   const [unitNumber, setUnitNumber] = useState('')
   const [description, setDescription] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const toast = useToast()
 
@@ -194,6 +197,29 @@ export function Units({
     ],
     [units],
   )
+
+  async function handleDelete(u: Unit) {
+    // A booked unit still has an installation tied to its code — block removal
+    // so the booking never points at a unit that no longer exists.
+    if (u.booked) {
+      toast.error(`Can't delete ${u.unitNumber} — it has a booking.`)
+      return
+    }
+    if (
+      !window.confirm(`Delete unit ${u.unitNumber}? This cannot be undone.`)
+    ) {
+      return
+    }
+    setDeletingId(u.id)
+    try {
+      await onDelete(u.id)
+      toast.success(`Unit ${u.unitNumber} deleted`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not delete unit.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -285,6 +311,22 @@ export function Units({
                       <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">
                         Available
                       </span>
+                    )}
+                    {canManage && (
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(u)}
+                        disabled={u.booked || deletingId === u.id}
+                        title={
+                          u.booked
+                            ? "Can't delete a booked unit"
+                            : 'Delete unit'
+                        }
+                        aria-label={`Delete unit ${u.unitNumber}`}
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-rose-50 hover:text-rose-500 focus-visible:outline-none active:scale-90 disabled:cursor-not-allowed disabled:text-slate-200 disabled:hover:bg-transparent disabled:hover:text-slate-200"
+                      >
+                        <Trash2 size={15} />
+                      </button>
                     )}
                   </div>
                 </li>

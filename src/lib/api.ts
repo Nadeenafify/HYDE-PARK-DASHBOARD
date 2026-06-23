@@ -343,6 +343,11 @@ export const api = {
   ): Promise<{ created: number; skipped: number; total: number }> =>
     request('/units/bulk', jsonInit('POST', { units })),
 
+  /** Permanently remove a unit (Super Admin only). */
+  deleteUnit: async (id: string): Promise<void> => {
+    await request(`/units/${id}`, { method: 'DELETE' })
+  },
+
   /** Full data snapshot for download (admin). */
   getBackup: (): Promise<unknown> => request('/backup'),
 

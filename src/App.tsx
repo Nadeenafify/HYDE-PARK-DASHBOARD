@@ -65,6 +65,7 @@ function Dashboard({
     postpone,
     addUnit,
     importUnits,
+    deleteUnit,
     restore,
     loadDemo,
   } = useDashboard()
@@ -250,6 +251,7 @@ function Dashboard({
                   units={units}
                   onAdd={addUnit}
                   onImport={importUnits}
+                  onDelete={deleteUnit}
                   canManage={isSuperAdmin}
                 />
               )}

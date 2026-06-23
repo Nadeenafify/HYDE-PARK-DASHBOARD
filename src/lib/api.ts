@@ -10,12 +10,11 @@ import type {
   Schedule,
   TimeSlot,
   Unit,
-  UnitType,
 } from '../types'
 import { getToken, clearToken, notifyUnauthorized } from './auth'
 
 /**
- * API client for the HPD Home Connect backend.
+ * API client for the HPD Triple Play backend.
  *
  *   GET    /api/health
  *   GET    /api/units
@@ -184,14 +183,6 @@ export function mapBooking(raw: Record<string, unknown>): Booking {
     unitNumber: str(
       pick(raw, 'unitCode', 'unitNumber', 'unit_number', 'unit', 'unitNo', 'code'),
     ),
-    unitType: (() => {
-      const t = str(pick(raw, 'unitType', 'unit_type') ?? '').toLowerCase()
-      return t === 'commercial'
-        ? 'commercial'
-        : t === 'residential'
-          ? 'residential'
-          : undefined
-    })(),
     firstName: first,
     lastName: last,
     mobile: str(pick(raw, 'mobile', 'phone', 'mobileNumber', 'mobile_number')),
@@ -234,14 +225,12 @@ export function mapBooking(raw: Record<string, unknown>): Booking {
 }
 
 export function mapUnit(raw: Record<string, unknown>): Unit {
-  const t = str(pick(raw, 'type', 'unitType') ?? 'residential').toLowerCase()
   const desc = pick(raw, 'description', 'desc')
   return {
     id: str(pick(raw, 'id', '_id', 'unitId') ?? pick(raw, 'code', 'unitNumber')),
     unitNumber: str(
       pick(raw, 'code', 'unitNumber', 'unit_number', 'unit', 'number', 'name'),
     ),
-    type: t === 'commercial' ? 'commercial' : 'residential',
     description: desc ? str(desc) : undefined,
     booked: Boolean(pick(raw, 'booked', 'hasBooking', 'isBooked') ?? false),
   }
@@ -334,13 +323,11 @@ export const api = {
 
   createUnit: async (payload: {
     unitNumber: string
-    type: UnitType
     description?: string
   }): Promise<Unit> => {
-    // Backend stores units as { code, type, description }.
+    // Backend stores units as { code, description }.
     const body = {
       code: payload.unitNumber,
-      type: payload.type,
       description: payload.description ?? null,
     }
     const res = await request<Record<string, unknown>>(
@@ -352,7 +339,7 @@ export const api = {
 
   /** Import many units at once (e.g. parsed from an Excel file). */
   importUnits: async (
-    units: { code: string; type?: UnitType; description?: string }[],
+    units: { code: string; description?: string }[],
   ): Promise<{ created: number; skipped: number; total: number }> =>
     request('/units/bulk', jsonInit('POST', { units })),
 

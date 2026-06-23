@@ -67,7 +67,7 @@ export function LoginPage({
           <div className="mb-6 text-center">
             <h1 className="text-lg font-bold text-slate-900">Admin sign in</h1>
             <p className="mt-1 text-sm text-slate-500">
-              HPD Home Connect bookings dashboard
+              HPD Triple Play bookings dashboard
             </p>
           </div>
 

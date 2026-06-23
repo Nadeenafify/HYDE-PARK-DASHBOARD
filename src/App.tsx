@@ -28,7 +28,7 @@ import type { AppUser } from './types'
 import { ROLE_LABELS } from './types'
 
 const VIEW_META: Record<View, { title: string; subtitle: string }> = {
-  overview: { title: 'Overview', subtitle: 'HPD Home Connect bookings at a glance' },
+  overview: { title: 'Overview', subtitle: 'HPD Triple Play bookings at a glance' },
   bookings: { title: 'Bookings', subtitle: 'All form submissions' },
   schedule: { title: 'Schedule', subtitle: 'Upcoming installation appointments' },
   units: { title: 'Units', subtitle: 'Registered units' },

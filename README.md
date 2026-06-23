@@ -1,6 +1,6 @@
-# HPD Home Connect — Admin Dashboard
+# HPD Triple Play — Admin Dashboard
 
-Admin-only dashboard for the HPD Home Connect bookings (React + TypeScript + Vite).
+Admin-only dashboard for the HPD Triple Play bookings (React + TypeScript + Vite).
 
 ## Admin login
 

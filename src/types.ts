@@ -118,19 +118,10 @@ export interface RestoreResult {
   bookings: RestoreEntityResult
 }
 
-/** A unit is classified as either commercial or residential. */
-export type UnitType = 'commercial' | 'residential'
-
-export const UNIT_TYPE_LABELS: Record<UnitType, { en: string; ar: string }> = {
-  commercial: { en: 'Commercial', ar: 'تجاري' },
-  residential: { en: 'Residential', ar: 'سكني' },
-}
-
 /** A unit available for / referenced by bookings (GET/POST /api/units). */
 export interface Unit {
   id: string
   unitNumber: string
-  type: UnitType
   /** Optional free-text description / notes. */
   description?: string
   /** True if a booking already exists for this unit. */
@@ -146,12 +137,10 @@ export interface PostponeRecord {
   at: string
 }
 
-/** Mirrors the fields of the HPD Home Connect JotForm. */
+/** Mirrors the fields of the HPD Triple Play JotForm. */
 export interface Booking {
   id: string
   unitNumber: string
-  /** Snapshot of the unit's category at booking time (commercial/residential). */
-  unitType?: UnitType
   firstName: string
   lastName: string
   mobile: string

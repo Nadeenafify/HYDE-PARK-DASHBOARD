@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Building2, Plus, CheckCircle2, Upload, Tag } from 'lucide-react'
 import type { ReactNode } from 'react'
-import type { Unit, UnitType } from '../types'
-import { UNIT_TYPE_LABELS } from '../types'
+import type { Unit } from '../types'
 import {
   SectionCard,
   Pagination,
@@ -14,15 +13,11 @@ import { useToast } from './Toast'
 import { usePagination } from '../hooks/usePagination'
 
 type BookedFilter = 'all' | 'available' | 'booked'
-type TypeFilter = 'all' | UnitType
 
 // Tolerant header matching so common English/Arabic column names all work.
 const CODE_KEYS = [
   'code', 'unit', 'unit number', 'unitnumber', 'unit_code', 'unit code',
   'رقم الوحدة', 'الوحدة', 'الوحده', 'رقم',
-]
-const TYPE_KEYS = [
-  'type', 'category', 'kind', 'نوع', 'النوع', 'الفئة', 'فئة', 'تصنيف',
 ]
 const DESC_KEYS = [
   'description', 'desc', 'notes', 'الوصف', 'وصف', 'تفاصيل', 'ملاحظات',
@@ -32,20 +27,11 @@ function norm(v: unknown): string {
   return String(v ?? '').trim().toLowerCase()
 }
 
-/** Map a free-text cell to a unit type; undefined lets the backend default it. */
-function typeFromText(v: unknown): UnitType | undefined {
-  const s = norm(v)
-  if (!s) return undefined
-  if (s.startsWith('comm') || s.includes('تجار')) return 'commercial'
-  if (s.startsWith('res') || s.includes('سكن')) return 'residential'
-  return undefined
-}
-
 type ParsedUnits = {
-  rows: { code: string; type?: UnitType; description?: string }[]
+  rows: { code: string; description?: string }[]
   /**
    * Named header columns present in the file that we did not map to
-   * code/type/description and therefore dropped. Only known when a header row
+   * code/description and therefore dropped. Only known when a header row
    * exists — without headers the columns have no names to report.
    */
   ignoredColumns: string[]
@@ -54,7 +40,7 @@ type ParsedUnits = {
 /**
  * Parse an .xlsx/.csv into unit rows. Works with or without a header row:
  * if the first row looks like headers we map by column name, otherwise the
- * columns are taken positionally as code, type, description.
+ * columns are taken positionally as code, description.
  */
 async function parseUnitsFile(file: File): Promise<ParsedUnits> {
   // Lazy-load SheetJS only when an import actually happens (keeps the main
@@ -74,19 +60,16 @@ async function parseUnitsFile(file: File): Promise<ParsedUnits> {
   const rawHeader = rows[0] as unknown[]
   const first = rawHeader.map((c) => norm(c))
   const hasHeader = first.some(
-    (c) => CODE_KEYS.includes(c) || TYPE_KEYS.includes(c) || DESC_KEYS.includes(c),
+    (c) => CODE_KEYS.includes(c) || DESC_KEYS.includes(c),
   )
 
   let codeIdx = 0
-  let typeIdx = 1
-  let descIdx = 2
+  let descIdx = 1
   let dataRows = rows
   if (hasHeader) {
     const ci = first.findIndex((c) => CODE_KEYS.includes(c))
-    const ti = first.findIndex((c) => TYPE_KEYS.includes(c))
     const di = first.findIndex((c) => DESC_KEYS.includes(c))
     codeIdx = ci >= 0 ? ci : 0
-    typeIdx = ti
     descIdx = di
     dataRows = rows.slice(1)
   }
@@ -96,20 +79,19 @@ async function parseUnitsFile(file: File): Promise<ParsedUnits> {
   const ignoredColumns: string[] = []
   if (hasHeader) {
     rawHeader.forEach((h, idx) => {
-      if (idx === codeIdx || idx === typeIdx || idx === descIdx) return
+      if (idx === codeIdx || idx === descIdx) return
       const name = String(h ?? '').trim()
       if (name) ignoredColumns.push(name)
     })
   }
 
-  const out: { code: string; type?: UnitType; description?: string }[] = []
+  const out: { code: string; description?: string }[] = []
   for (const r of dataRows) {
     const arr = r as unknown[]
     const code = String(arr[codeIdx] ?? '').trim()
     if (!code) continue
-    const type = typeIdx >= 0 ? typeFromText(arr[typeIdx]) : undefined
     const description = descIdx >= 0 ? String(arr[descIdx] ?? '').trim() : ''
-    out.push({ code, type, description: description || undefined })
+    out.push({ code, description: description || undefined })
   }
   return { rows: out, ignoredColumns }
 }
@@ -123,17 +105,15 @@ export function Units({
   units: Unit[]
   onAdd: (payload: {
     unitNumber: string
-    type: UnitType
     description?: string
   }) => Promise<void>
   onImport: (
-    units: { code: string; type?: UnitType; description?: string }[],
+    units: { code: string; description?: string }[],
   ) => Promise<{ created: number; skipped: number; total: number }>
   /** Only Super Admins can add or import units. */
   canManage: boolean
 }) {
   const [unitNumber, setUnitNumber] = useState('')
-  const [type, setType] = useState<UnitType | ''>('')
   const [description, setDescription] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -174,22 +154,19 @@ export function Units({
   // List filters
   const [query, setQuery] = useState('')
   const [bookedFilter, setBookedFilter] = useState<BookedFilter>('all')
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return units.filter((u) => {
       if (bookedFilter === 'booked' && !u.booked) return false
       if (bookedFilter === 'available' && u.booked) return false
-      if (typeFilter !== 'all' && u.type !== typeFilter) return false
       if (!q) return true
       return (
         u.unitNumber.toLowerCase().includes(q) ||
-        u.type.toLowerCase().includes(q) ||
         (u.description ?? '').toLowerCase().includes(q)
       )
     })
-  }, [units, query, bookedFilter, typeFilter])
+  }, [units, query, bookedFilter])
 
   const { pageItems, page, pageSize, total, totalPages, start, setPage, setPageSize } =
     usePagination(filtered)
@@ -197,7 +174,7 @@ export function Units({
   // Jump back to the first page whenever the filters change.
   useEffect(() => {
     setPage(1)
-  }, [query, bookedFilter, typeFilter, setPage])
+  }, [query, bookedFilter, setPage])
 
   const bookedOptions: FilterOption<BookedFilter>[] = useMemo(
     () => [
@@ -218,38 +195,17 @@ export function Units({
     [units],
   )
 
-  const typeOptions: FilterOption<TypeFilter>[] = useMemo(
-    () => [
-      { key: 'all', label: 'All', count: units.length },
-      {
-        key: 'residential',
-        label: 'Residential',
-        count: units.filter((u) => u.type === 'residential').length,
-        dot: 'bg-sky-500',
-      },
-      {
-        key: 'commercial',
-        label: 'Commercial',
-        count: units.filter((u) => u.type === 'commercial').length,
-        dot: 'bg-violet-500',
-      },
-    ],
-    [units],
-  )
-
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!unitNumber.trim() || !type) return
+    if (!unitNumber.trim()) return
     setSaving(true)
     setError(null)
     try {
       await onAdd({
         unitNumber: unitNumber.trim(),
-        type,
         description: description.trim() || undefined,
       })
       setUnitNumber('')
-      setType('')
       setDescription('')
       toast.success('Unit added')
     } catch (err) {
@@ -281,12 +237,6 @@ export function Units({
             options={bookedOptions}
             value={bookedFilter}
             onChange={setBookedFilter}
-          />
-          <FilterChips
-            label="Type"
-            options={typeOptions}
-            value={typeFilter}
-            onChange={setTypeFilter}
           />
         </div>
 
@@ -327,7 +277,6 @@ export function Units({
                     )}
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-1.5">
-                    <UnitTypeBadge type={u.type} />
                     {u.booked ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
                         <CheckCircle2 size={12} /> Booked
@@ -367,31 +316,6 @@ export function Units({
               placeholder="PK1-A-0312"
             />
 
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-500">
-                Type <span className="text-brand-500">*</span>
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {(['residential', 'commercial'] as const).map((t) => {
-                  const active = type === t
-                  return (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setType(t)}
-                      className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
-                        active
-                          ? 'border-brand-600 bg-brand-600 text-white shadow-sm'
-                          : 'border-slate-200 bg-slate-50/50 text-slate-600 hover:border-brand-300 hover:bg-brand-50/40'
-                      }`}
-                    >
-                      {UNIT_TYPE_LABELS[t].en}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
             <IconInput
               label="Description"
               icon={<Tag size={15} />}
@@ -402,7 +326,7 @@ export function Units({
             {error && <p className="text-xs font-medium text-rose-600">{error}</p>}
             <button
               type="submit"
-              disabled={saving || !unitNumber.trim() || !type}
+              disabled={saving || !unitNumber.trim()}
               className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-linear-to-r from-brand-600 to-brand-700 px-3 py-2.5 text-sm font-semibold text-white shadow-sm shadow-brand-600/20 transition hover:from-brand-500 hover:to-brand-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none"
             >
               <Plus size={16} /> {saving ? 'Adding…' : 'Add unit'}
@@ -438,27 +362,13 @@ export function Units({
                 {importing ? 'Importing…' : 'Import from Excel'}
               </span>
               <span className="text-[11px] text-slate-400">
-                Columns: code · type · description · duplicates skipped
+                Columns: code · description · duplicates skipped
               </span>
             </button>
           </div>
         </SectionCard>
       )}
     </div>
-  )
-}
-
-function UnitTypeBadge({ type }: { type: UnitType }) {
-  const tone =
-    type === 'commercial'
-      ? 'bg-violet-50 text-violet-700 ring-violet-200'
-      : 'bg-sky-50 text-sky-700 ring-sky-200'
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${tone}`}
-    >
-      {UNIT_TYPE_LABELS[type].en}
-    </span>
   )
 }
 

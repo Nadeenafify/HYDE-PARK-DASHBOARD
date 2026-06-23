@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, Search, X } from 'lucide-react'
-import type { BookingStatus, UnitType } from '../types'
-import { UNIT_TYPE_LABELS } from '../types'
+import type { BookingStatus } from '../types'
 import { STATUS_META, initials } from '../lib/utils'
 
 /** Hyde Park Developments "H" monogram — transparent PNG served from /public. */
@@ -23,28 +22,6 @@ export function StatusBadge({ status }: { status: BookingStatus }) {
     >
       <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
       {meta.label}
-    </span>
-  )
-}
-
-/** Commercial / residential pill. Renders nothing for bookings with no type. */
-export function UnitTypeBadge({
-  type,
-  className = '',
-}: {
-  type?: UnitType
-  className?: string
-}) {
-  if (!type) return null
-  const tone =
-    type === 'commercial'
-      ? 'bg-violet-50 text-violet-700 ring-violet-200'
-      : 'bg-sky-50 text-sky-700 ring-sky-200'
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${tone} ${className}`}
-    >
-      {UNIT_TYPE_LABELS[type].en}
     </span>
   )
 }

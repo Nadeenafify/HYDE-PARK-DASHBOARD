@@ -7,7 +7,7 @@ import {
   FileWarning,
 } from 'lucide-react'
 import type { Booking } from '../types'
-import { TIME_SLOTS, STATUSES, UNIT_TYPE_LABELS } from '../types'
+import { TIME_SLOTS, STATUSES } from '../types'
 import {
   fullName,
   formatDate,
@@ -58,18 +58,6 @@ export function Overview({
       status: s,
       count: bookings.filter((b) => b.status === s).length,
     }))
-  }, [bookings])
-
-  // Commercial vs residential split across active (non-cancelled) bookings.
-  const typeData = useMemo(() => {
-    let residential = 0
-    let commercial = 0
-    for (const b of bookings) {
-      if (b.status === 'cancelled') continue
-      if (b.unitType === 'residential') residential++
-      else if (b.unitType === 'commercial') commercial++
-    }
-    return { residential, commercial, total: residential + commercial }
   }, [bookings])
 
   const upcoming = useMemo(
@@ -183,51 +171,6 @@ export function Overview({
                     </span>
                   </div>
                 ))}
-              </div>
-            </div>
-          </SectionCard>
-
-          <SectionCard title="Unit types">
-            <div className="space-y-4 px-5 py-5">
-              <div className="flex h-3 overflow-hidden rounded-full bg-slate-100 ring-1 ring-inset ring-slate-200/60">
-                {typeData.residential > 0 && (
-                  <div
-                    className="bg-sky-500 transition-all"
-                    style={{
-                      width: `${(typeData.residential / (typeData.total || 1)) * 100}%`,
-                    }}
-                    title={`Residential: ${typeData.residential}`}
-                  />
-                )}
-                {typeData.commercial > 0 && (
-                  <div
-                    className="bg-violet-500 transition-all"
-                    style={{
-                      width: `${(typeData.commercial / (typeData.total || 1)) * 100}%`,
-                    }}
-                    title={`Commercial: ${typeData.commercial}`}
-                  />
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-2.5">
-                <div className="flex items-center gap-2 rounded-lg px-2 py-1.5">
-                  <span className="h-2 w-2 rounded-full bg-sky-500" />
-                  <span className="text-sm text-slate-600">
-                    {UNIT_TYPE_LABELS.residential.en}
-                  </span>
-                  <span className="ml-auto text-sm font-bold text-slate-800">
-                    {typeData.residential}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 rounded-lg px-2 py-1.5">
-                  <span className="h-2 w-2 rounded-full bg-violet-500" />
-                  <span className="text-sm text-slate-600">
-                    {UNIT_TYPE_LABELS.commercial.en}
-                  </span>
-                  <span className="ml-auto text-sm font-bold text-slate-800">
-                    {typeData.commercial}
-                  </span>
-                </div>
               </div>
             </div>
           </SectionCard>

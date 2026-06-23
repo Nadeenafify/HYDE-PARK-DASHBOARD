@@ -21,7 +21,7 @@ import {
   formatMobile,
   STATUS_META,
 } from '../lib/utils'
-import { Avatar, StatusBadge, UnitTypeBadge } from './ui'
+import { Avatar, StatusBadge } from './ui'
 import { WorkingDayCalendar } from './WorkingDayCalendar'
 
 /** Bookable slots for an ISO date per the schedule — empty if the day is closed. */
@@ -79,6 +79,8 @@ export function BookingDetail({
   // the reschedule calendar can disable closed days and confirm stays blocked
   // until it has loaded.
   const [schedule, setSchedule] = useState<Schedule | null>(null)
+  // Cancelling is destructive, so it goes through a confirmation step.
+  const [confirmingCancel, setConfirmingCancel] = useState(false)
 
   useEffect(() => {
     if (!booking) return
@@ -118,6 +120,22 @@ export function BookingDetail({
     setRescheduling(true)
   }
 
+  // Handle a status pill: no-op on the current status, confirm before
+  // cancelling, apply the rest immediately.
+  function handleStatusClick(s: BookingStatus) {
+    if (!booking || s === booking.status) return
+    if (s === 'cancelled') setConfirmingCancel(true)
+    else onStatusChange(booking.id, s)
+  }
+
+  // Confirmed cancel: mark cancelled, then close the detail panel.
+  function confirmCancel() {
+    if (!booking) return
+    onStatusChange(booking.id, 'cancelled')
+    setConfirmingCancel(false)
+    onClose()
+  }
+
   async function doPostpone() {
     if (!booking) return
     // Don't submit until the schedule has loaded, then re-check day + time.
@@ -143,6 +161,7 @@ export function BookingDetail({
   }
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex justify-end">
       <div
         className="animate-fade absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
@@ -208,10 +227,7 @@ export function BookingDetail({
 
           <div className="space-y-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
             <Field icon={<Home size={16} />} label="Unit Number / رقم الوحدة">
-              <span className="inline-flex items-center gap-2">
-                {booking.unitNumber}
-                <UnitTypeBadge type={booking.unitType} />
-              </span>
+              {booking.unitNumber}
             </Field>
             <Field icon={<Phone size={16} />} label="Mobile / رقم التليفون">
               <a
@@ -362,32 +378,46 @@ export function BookingDetail({
             )
           )}
 
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-              Update status
-            </p>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {STATUSES.map((s) => {
-                const active = s === booking.status
-                const meta = STATUS_META[s]
-                return (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => onStatusChange(booking.id, s)}
-                    className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                      active
-                        ? 'border-slate-900 bg-linear-to-r from-slate-900 to-slate-800 text-white shadow-sm'
-                        : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
-                    {meta.label}
-                  </button>
-                )
-              })}
+          {/* Status is terminal once cancelled — hide the controls. */}
+          {booking.status === 'cancelled' ? (
+            <div className="flex items-center gap-2 rounded-xl border border-rose-100 bg-rose-50/60 px-3 py-2.5 text-sm text-rose-700">
+              <XCircle size={16} className="shrink-0" />
+              <span>
+                This booking is cancelled.
+                <span dir="rtl" className="text-rose-600/80">
+                  {' '}
+                  · تم إلغاء هذا الحجز
+                </span>
+              </span>
             </div>
-          </div>
+          ) : (
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Update status
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {STATUSES.map((s) => {
+                  const active = s === booking.status
+                  const meta = STATUS_META[s]
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => handleStatusClick(s)}
+                      className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                        active
+                          ? 'border-slate-900 bg-linear-to-r from-slate-900 to-slate-800 text-white shadow-sm'
+                          : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+                      {meta.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Block / unblock this customer from self-service online booking */}
           {booking.blocked ? (
@@ -415,5 +445,56 @@ export function BookingDetail({
         </div>
       </div>
     </div>
+
+    {/* Cancel confirmation */}
+    {confirmingCancel && (
+      <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
+        <div
+          className="animate-fade absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+          onClick={() => setConfirmingCancel(false)}
+          aria-hidden="true"
+        />
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="animate-rise relative z-10 w-full max-w-sm rounded-2xl bg-white p-6 shadow-pop"
+        >
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
+              <XCircle size={22} />
+            </span>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">
+                Cancel this booking?
+              </h3>
+              <p className="mt-1 text-sm leading-relaxed text-slate-500">
+                Booking #{shortId} for Unit {booking.unitNumber} will be marked
+                as cancelled.
+                <span dir="rtl" className="mt-1 block">
+                  سيتم إلغاء حجز الوحدة {booking.unitNumber}.
+                </span>
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmingCancel(false)}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+            >
+              Keep booking / تراجع
+            </button>
+            <button
+              type="button"
+              onClick={confirmCancel}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-linear-to-r from-rose-600 to-rose-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:from-rose-500 hover:to-rose-600"
+            >
+              <XCircle size={15} /> Yes, cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

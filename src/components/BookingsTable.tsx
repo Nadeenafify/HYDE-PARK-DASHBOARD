@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { FileImage, FileX2, ChevronDown, Ban } from 'lucide-react'
-import type { Booking, BookingStatus, UnitType } from '../types'
-import { STATUSES, UNIT_TYPE_LABELS } from '../types'
+import type { Booking, BookingStatus } from '../types'
+import { STATUSES } from '../types'
 import {
   fullName,
   formatDate,
@@ -13,7 +13,6 @@ import {
 import {
   Avatar,
   StatusBadge,
-  UnitTypeBadge,
   Pagination,
   SearchInput,
   FilterChips,
@@ -22,15 +21,6 @@ import {
 import { usePagination } from '../hooks/usePagination'
 
 type StatusFilter = BookingStatus | 'all'
-type TypeFilter = UnitType | 'all'
-const TYPE_FILTERS: TypeFilter[] = ['all', 'residential', 'commercial']
-
-/** Accent dot for a unit-type pill (matches UnitTypeBadge tones). */
-const TYPE_DOT: Record<TypeFilter, string | undefined> = {
-  all: undefined,
-  residential: 'bg-sky-500',
-  commercial: 'bg-violet-500',
-}
 
 export function BookingsTable({
   bookings,
@@ -41,7 +31,6 @@ export function BookingsTable({
 }) {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
 
   const counts = useMemo(() => {
     const c: Record<StatusFilter, number> = {
@@ -55,24 +44,10 @@ export function BookingsTable({
     return c
   }, [bookings])
 
-  const typeCounts = useMemo(() => {
-    const c: Record<TypeFilter, number> = {
-      all: bookings.length,
-      residential: 0,
-      commercial: 0,
-    }
-    for (const b of bookings) {
-      if (b.unitType === 'residential') c.residential++
-      else if (b.unitType === 'commercial') c.commercial++
-    }
-    return c
-  }, [bookings])
-
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return bookings
       .filter((b) => statusFilter === 'all' || b.status === statusFilter)
-      .filter((b) => typeFilter === 'all' || b.unitType === typeFilter)
       .filter((b) => {
         if (!q) return true
         return (
@@ -83,7 +58,7 @@ export function BookingsTable({
         )
       })
       .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
-  }, [bookings, query, statusFilter, typeFilter])
+  }, [bookings, query, statusFilter])
 
   const { pageItems, page, pageSize, total, totalPages, start, setPage, setPageSize } =
     usePagination(filtered)
@@ -91,7 +66,7 @@ export function BookingsTable({
   // Jump back to the first page whenever the filters change.
   useEffect(() => {
     setPage(1)
-  }, [query, statusFilter, typeFilter, setPage])
+  }, [query, statusFilter, setPage])
 
   const statusOptions: FilterOption<StatusFilter>[] = (
     ['all', ...STATUSES] as StatusFilter[]
@@ -100,13 +75,6 @@ export function BookingsTable({
     label: s === 'all' ? 'All' : STATUS_META[s].label,
     count: counts[s],
     dot: s === 'all' ? undefined : STATUS_META[s].dot,
-  }))
-
-  const typeOptions: FilterOption<TypeFilter>[] = TYPE_FILTERS.map((t) => ({
-    key: t,
-    label: t === 'all' ? 'All' : UNIT_TYPE_LABELS[t].en,
-    count: typeCounts[t],
-    dot: TYPE_DOT[t],
   }))
 
   return (
@@ -125,12 +93,6 @@ export function BookingsTable({
             options={statusOptions}
             value={statusFilter}
             onChange={setStatusFilter}
-          />
-          <FilterChips
-            label="Type"
-            options={typeOptions}
-            value={typeFilter}
-            onChange={setTypeFilter}
           />
         </div>
       </div>
@@ -164,7 +126,6 @@ export function BookingsTable({
                       </p>
                       <p className="flex items-center gap-1.5 text-xs text-slate-400">
                     {b.unitNumber}
-                    <UnitTypeBadge type={b.unitType} />
                   </p>
                     </div>
                   </div>
@@ -209,7 +170,6 @@ export function BookingsTable({
                   </p>
                   <p className="flex items-center gap-1.5 text-xs text-slate-400">
                     {b.unitNumber}
-                    <UnitTypeBadge type={b.unitType} />
                   </p>
                 </div>
               </div>

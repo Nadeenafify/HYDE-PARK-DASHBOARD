@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, ChevronRight, Clock } from 'lucide-react'
-import type { Booking, BookingStatus, UnitType } from '../types'
-import { TIME_SLOTS, STATUSES, UNIT_TYPE_LABELS } from '../types'
+import type { Booking, BookingStatus } from '../types'
+import { TIME_SLOTS, STATUSES } from '../types'
 import {
   fullName,
   formatDate,
@@ -20,7 +20,6 @@ import {
 import { usePagination } from '../hooks/usePagination'
 
 type StatusFilter = BookingStatus | 'all'
-type TypeFilter = UnitType | 'all'
 
 /** Compact calendar parts for a day tile, e.g. { weekday: "THU", day: "18" }. */
 function dateParts(iso: string) {
@@ -48,7 +47,6 @@ export function Schedule({
 }) {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
 
   // Upcoming, non-cancelled bookings matching the search — the set the status
   // filter pills count against, before the status filter itself is applied.
@@ -76,23 +74,9 @@ export function Schedule({
     return c
   }, [base])
 
-  const typeCounts = useMemo(() => {
-    const c: Record<TypeFilter, number> = {
-      all: base.length,
-      residential: 0,
-      commercial: 0,
-    }
-    for (const b of base) {
-      if (b.unitType === 'residential') c.residential++
-      else if (b.unitType === 'commercial') c.commercial++
-    }
-    return c
-  }, [base])
-
   const days = useMemo(() => {
     const active = base
       .filter((b) => statusFilter === 'all' || b.status === statusFilter)
-      .filter((b) => typeFilter === 'all' || b.unitType === typeFilter)
     const byDate = new Map<string, Booking[]>()
     for (const b of active) {
       const list = byDate.get(b.installationDate) ?? []
@@ -107,7 +91,7 @@ export function Schedule({
           (a, b) => TIME_SLOTS.indexOf(a.timeSlot) - TIME_SLOTS.indexOf(b.timeSlot),
         ),
       }))
-  }, [base, statusFilter, typeFilter])
+  }, [base, statusFilter])
 
   // Paginate by day group — a handful of days per page.
   const { pageItems, page, pageSize, total, totalPages, start, setPage, setPageSize } =
@@ -116,7 +100,7 @@ export function Schedule({
   // Jump back to the first page whenever the filters change.
   useEffect(() => {
     setPage(1)
-  }, [query, statusFilter, typeFilter, setPage])
+  }, [query, statusFilter, setPage])
 
   const statusFilters = [
     'all',
@@ -129,22 +113,6 @@ export function Schedule({
     count: counts[s],
     dot: s === 'all' ? undefined : STATUS_META[s].dot,
   }))
-
-  const typeOptions: FilterOption<TypeFilter>[] = [
-    { key: 'all', label: 'All', count: typeCounts.all },
-    {
-      key: 'residential',
-      label: UNIT_TYPE_LABELS.residential.en,
-      count: typeCounts.residential,
-      dot: 'bg-sky-500',
-    },
-    {
-      key: 'commercial',
-      label: UNIT_TYPE_LABELS.commercial.en,
-      count: typeCounts.commercial,
-      dot: 'bg-violet-500',
-    },
-  ]
 
   return (
     <div className="space-y-5">
@@ -162,12 +130,6 @@ export function Schedule({
             options={statusOptions}
             value={statusFilter}
             onChange={setStatusFilter}
-          />
-          <FilterChips
-            label="Type"
-            options={typeOptions}
-            value={typeFilter}
-            onChange={setTypeFilter}
           />
         </div>
       </div>
